@@ -17,6 +17,8 @@ contract Lending is Ownable {
     uint256 public LIQUIDATION_REWARD = 10;
     uint256 public constant PRECISION = 1e18;
     uint256 public constant LIQUIDATION_GRACE_PERIOD = 24 hours;
+    uint256 public constant INTEREST_RATE = 10;
+    uint256 public constant YEAR = 365 days;
 
 
     address private owner;
@@ -26,12 +28,14 @@ contract Lending is Ownable {
     mapping(address => uint256) public userDepositedValue;
     mapping(address => bool) public isUserVaiableForLiquidation;
     mapping(address => uint256) public userRiskTimestampStart;
+    mapping(address => uint256) public borrowTimestamp;
 
     //Events
     event DepositSuccess(address indexed _sender, uint256 _amount);
     event BorrowSuccess(address indexed _borrower, uint256 _borrowAmount);
     event WithrdrawalSuccess(uint256 indexed _withdrawalAmount);
     event Liquidation_Success(address indexed _liquidator, address borrower, uint256 indexed _amount);
+    event Loan_Repayment_Success(address indexed _user, uint256 _amount);
 
 
     constructor(address _APS, address _APSDEX) Ownable(msg.sender){
@@ -74,6 +78,8 @@ contract Lending is Ownable {
 
         userBorrowedValue[msg.sender] += _amount;
 
+        borrowTimestamp[msg.sender] = block.timestamp;
+
         emit BorrowSuccess(msg.sender, _amount);
 
         return true;
@@ -93,7 +99,7 @@ contract Lending is Ownable {
         require(userDepositedValue[msg.sender] > _amount, "Insufficient funds!");
         require(userBorrowedValue[msg.sender] <= 0, "You can't withdraw collateral due to an existing loan!");
 
-        (bool success, ) = payable(i_apsDex).transferFrom(address(this), msg.sender, _amount);
+        (bool success, ) = payable(address(this)).transfer(msg.sender).call{ value : _amount}(" ");
         // (bool success, ) = payable(msg.sender).transfer(_amount);
 
         require(success, "Withdrawal Failed!");
@@ -121,11 +127,11 @@ contract Lending is Ownable {
     //function to liquidate
     function liquidate(address _user) external returns (bool) {
         require(getHealthFactor(_user) < 1e18, "Not liquidatable!");
-        require(token.balanceOf(msg.sender) >= userBorrowedValue(_user), "Insufficient funds!");
+        require(i_aps.balanceOf(msg.sender) >= userBorrowedValue(_user), "Insufficient funds!");
 
         uint256 liquidatorValue = userDepositedValue[_user] + (10 * userBorrowedValue[_user]) / 100;
 
-        (bool success, ) = token(msg.sender).transferFrom(msg.sender, address(this), userBorrowedValue[_user]);
+        (bool success, ) = i_aps(msg.sender).transferFrom(msg.sender, address(this), userBorrowedValue[_user]);
 
         require(success, "Token transfer failed!");
 
@@ -137,7 +143,12 @@ contract Lending is Ownable {
 
         userDepositedValue[_user] = 0;
 
+        borrowTimestamp[_user] = 0;
+
         emit Liquidation_Success(msg.sender, _user, userBorrowedValue);
+
+        //call the internal function to update the startrisktimestamp
+        _updateStartRiskTimestamp(_user);
 
         return true;
     }
@@ -167,6 +178,65 @@ contract Lending is Ownable {
             userRiskTimestampStart[_user] = 0;
             isUserVaiableForLiquidation[_user] = false;
         }
+    }
+
+    //function to calculate the interest on a loan
+    function calculateInterest(address user) public view returns (uint256) {
+        uint256 principal = userBorrowedValue[user];
+
+        uint256 timeElapsed = block.timestamp - borrowTimestamp[user];
+
+        return (principal * INTEREST_RATE * timeElapsed) / (100 * 365 days);
+    }
+
+    //function to get the total repay amount including interest
+    function getRepayAmount(address user) public view returns (uint256)
+    {   
+        return userBorrowedValue[user] + calculateInterest(user);
+    }
+
+    //function to repay borrowed loan
+    function repayLoan(address _user) payable external returns (bool) {
+        //call the updateRiskStartTimestamp internal function
+        _updateStartRiskTimestamp(_user);
+
+        //calculate the amount to repay
+        uint256 amount = getRepayAmount(_user);
+
+        //require that the user has enough balance to repay their loan
+        require(i_aps.balanceOf(_user) >= amount, "Insufficient funds!");
+
+        //require that the user is not viable for liquidation
+        require(!isUserVaiableForLiquidation, "User is already viable for liquidation!");
+
+        //require that the user actually has borrowed a loan
+        require(userBorrowedValue[_user] != 0, "User doesn't have an existing loan!");
+
+        //transfer the APS tokens to the contract from the user
+        (bool success, ) = i_aps.transferFrom(_user, address(this), amount);
+
+        require(success, "Debt repayment failed!");
+
+        uint256 collateralAmount = userDepositedValue[_user];
+
+        //get back the collataral
+        (bool successs, ) = payable(address(this)).transfer(_user).call{ value : collateralAmount }("");
+
+        require(successs, "Transfer of callateral back to borrower failed!");
+
+        //reset the user borrowed mapping
+        userBorrowedValue[_user] = 0;
+
+        //reset the user collateral mapping
+        userDepositedValue[_user] = 0;
+
+        //reset the user borrow timestamp
+        borrowTimestamp[_user] = 0;
+
+        emit Loan_Repayment_Success(_user, amount);
+
+        return true;
+
     }
 
 }
