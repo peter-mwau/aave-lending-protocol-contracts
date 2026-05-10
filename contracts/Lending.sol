@@ -1,242 +1,423 @@
-//SPDX-License-Identifier: MIT
-
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { APS } from "../contracts/APS.sol";
-import { APSDEX } from "../contracts/APSDEX.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { APS } from "./APS.sol";
+import { APSDEX } from "./APSDEX.sol";
 
 contract Lending is Ownable {
-    IERC20 token;
-    APS private i_aps;
-    APSDEX private i_apsDex;
 
-    address public immutable dex;
-    uint256 public constant COLLATERAL_RATIO= 120;
-    uint256 public LIQUIDATION_REWARD = 10;
+    // =============================================================
+    //                           STATE
+    // =============================================================
+
+    APS public immutable aps;
+    APSDEX public immutable apsDex;
+
+    uint256 public constant COLLATERAL_RATIO = 120; // 120%
+    uint256 public constant LIQUIDATION_BONUS = 10; // 10%
     uint256 public constant PRECISION = 1e18;
-    uint256 public constant LIQUIDATION_GRACE_PERIOD = 24 hours;
-    uint256 public constant INTEREST_RATE = 10;
+
+    uint256 public constant INTEREST_RATE = 10; // 10% APR
     uint256 public constant YEAR = 365 days;
 
+    uint256 public constant LIQUIDATION_GRACE_PERIOD = 24 hours;
 
-    address private owner;
+    // =============================================================
+    //                          STRUCTS
+    // =============================================================
 
-    //mappings
-    mapping(address => uint256) public userBorrowedValue;
-    mapping(address => uint256) public userDepositedValue;
-    mapping(address => bool) public isUserVaiableForLiquidation;
-    mapping(address => uint256) public userRiskTimestampStart;
-    mapping(address => uint256) public borrowTimestamp;
-
-    //Events
-    event DepositSuccess(address indexed _sender, uint256 _amount);
-    event BorrowSuccess(address indexed _borrower, uint256 _borrowAmount);
-    event WithrdrawalSuccess(uint256 indexed _withdrawalAmount);
-    event Liquidation_Success(address indexed _liquidator, address borrower, uint256 indexed _amount);
-    event Loan_Repayment_Success(address indexed _user, uint256 _amount);
-
-
-    constructor(address _APS, address _APSDEX) Ownable(msg.sender){
-        owner = msg.sender;
-        i_aps = APS(_APS);
-        i_apsDex = APSDEX(_APSDEX);
-
-        i_aps.approve(address(this), type(uint256).max);
+    struct Position {
+        uint256 collateralETH;
+        uint256 borrowedAPS;
+        uint256 borrowTimestamp;
+        uint256 riskTimestamp;
     }
 
-    //function to deposit collateral
-    function addCollateral(uint256 _amount) external payable returns(bool) {
-        require(msg.value >= _amount, "Insufficient balance");
+    mapping(address => Position) public positions;
 
-        (bool success, ) = msg.sender.call{ value : _amount} ("");
-        require(success, "Deposit failed");
+    // =============================================================
+    //                           EVENTS
+    // =============================================================
 
-        userDepositedValue[msg.sender] += _amount;
+    event CollateralDeposited(
+        address indexed user,
+        uint256 amount
+    );
 
-        emit DepositSuccess(msg.sender, _amount);
+    event Borrowed(
+        address indexed user,
+        uint256 amount
+    );
 
-        return true;
+    event Repaid(
+        address indexed user,
+        uint256 amount
+    );
+
+    event CollateralWithdrawn(
+        address indexed user,
+        uint256 amount
+    );
+
+    event Liquidated(
+        address indexed liquidator,
+        address indexed borrower,
+        uint256 debtRepaid,
+        uint256 collateralSeized
+    );
+
+    // =============================================================
+    //                        CONSTRUCTOR
+    // =============================================================
+
+    constructor(
+        address _aps,
+        address _apsDex
+    ) Ownable(msg.sender) {
+        aps = APS(_aps);
+        apsDex = APSDEX(payable(_apsDex));
     }
 
-    //function to borrow
-    function borrowAPS(uint256 _amount) external returns(bool) {
-        uint256 colletirizedPercentage = (userDepositedValue[msg.sender] / i_apsDex.currentPrice() * _amount) * 100;
-        bool _OvercollaterizationPass;
-        if(colletirizedPercentage >= COLLATERAL_RATIO) {
-            _OvercollaterizationPass = true;
-        } else {
-            _OvercollaterizationPass = false;
+    // =============================================================
+    //                   COLLATERAL FUNCTIONS
+    // =============================================================
+
+    function addCollateral() external payable {
+        require(msg.value > 0, "Must deposit ETH");
+
+        positions[msg.sender].collateralETH += msg.value;
+
+        emit CollateralDeposited(msg.sender, msg.value);
+    }
+
+    function withdrawCollateral(
+        uint256 amount
+    ) external {
+
+        Position storage user = positions[msg.sender];
+
+        require(
+            user.collateralETH >= amount,
+            "Insufficient collateral"
+        );
+
+        // simulate withdrawal first
+        user.collateralETH -= amount;
+
+        require(
+            getHealthFactor(msg.sender) >= PRECISION ||
+            user.borrowedAPS == 0,
+            "Withdrawal breaks health factor"
+        );
+
+        (bool success, ) = payable(msg.sender).call{
+            value: amount
+        }("");
+
+        require(success, "ETH transfer failed");
+
+        emit CollateralWithdrawn(msg.sender, amount);
+    }
+
+    // =============================================================
+    //                        BORROW LOGIC
+    // =============================================================
+
+    function borrowAPS(
+        uint256 amount
+    ) external {
+
+        require(amount > 0, "Invalid amount");
+
+        Position storage user = positions[msg.sender];
+
+        uint256 newBorrowedAmount =
+            user.borrowedAPS + amount;
+
+        uint256 borrowedValueETH =
+            apsToETHValue(newBorrowedAmount);
+
+        uint256 collateralRatio =
+            (user.collateralETH * 100)
+            / borrowedValueETH;
+
+        require(
+            collateralRatio >= COLLATERAL_RATIO,
+            "Insufficient collateral"
+        );
+
+        require(
+            aps.balanceOf(address(this)) >= amount,
+            "Protocol lacks liquidity"
+        );
+
+        user.borrowedAPS = newBorrowedAmount;
+
+        if (user.borrowTimestamp == 0) {
+            user.borrowTimestamp = block.timestamp;
         }
-        
-        require(_OvercollaterizationPass, "Over collaterization check failed!");
 
-        bool success = i_aps.transferFrom(address(this), msg.sender, _amount);
+        bool success = aps.transfer(msg.sender, amount);
 
-        require(success, "Borrow Failed!");
+        require(success, "APS transfer failed");
 
-        userBorrowedValue[msg.sender] += _amount;
-
-        borrowTimestamp[msg.sender] = block.timestamp;
-
-        emit BorrowSuccess(msg.sender, _amount);
-
-        return true;
+        emit Borrowed(msg.sender, amount);
     }
 
-    //function to calculate the collateral value
-    function calculateCollateralValue(address _user) public returns(uint256) {
-        require(userDepositedValue[_user] > 0, "Insufficient collateral!");
+    // =============================================================
+    //                       REPAY LOGIC
+    // =============================================================
 
-        uint256 collateralAmount = userDepositedValue[_user];
-        
-        return (i_apsDex.currentPrice() * collateralAmount) / 1e18;
+    function repayLoan() external {
+
+        Position storage user = positions[msg.sender];
+
+        require(
+            user.borrowedAPS > 0,
+            "No active loan"
+        );
+
+        uint256 repayAmount =
+            getRepayAmount(msg.sender);
+
+        require(
+            aps.balanceOf(msg.sender) >= repayAmount,
+            "Insufficient APS"
+        );
+
+        require(
+            aps.allowance(msg.sender, address(this))
+            >= repayAmount,
+            "Approve APS first"
+        );
+
+        bool success = aps.transferFrom(
+            msg.sender,
+            address(this),
+            repayAmount
+        );
+
+        require(success, "Repayment failed");
+
+        user.borrowedAPS = 0;
+        user.borrowTimestamp = 0;
+        user.riskTimestamp = 0;
+
+        emit Repaid(msg.sender, repayAmount);
     }
 
-    //function to withdraw collateral
-    function withdrawCollateral(uint256 _amount) external returns (uint256) {
-        require(userDepositedValue[msg.sender] > _amount, "Insufficient funds!");
-        require(userBorrowedValue[msg.sender] <= 0, "You can't withdraw collateral due to an existing loan!");
+    // =============================================================
+    //                      LIQUIDATION LOGIC
+    // =============================================================
 
-        (bool success, ) = payable(address(this)).transfer(msg.sender).call{ value : _amount}(" ");
-        // (bool success, ) = payable(msg.sender).transfer(_amount);
+    function liquidate(
+        address borrower
+    ) external {
 
-        require(success, "Withdrawal Failed!");
+        require(
+            canLiquidate(borrower),
+            "Not liquidatable"
+        );
 
-        userDepositedValue[msg.sender] -= _amount;
+        Position storage user =
+            positions[borrower];
 
-        emit WithrdrawalSuccess(_amount);
+        uint256 debt =
+            getRepayAmount(borrower);
 
-        return _amount;
+        require(
+            aps.balanceOf(msg.sender) >= debt,
+            "Insufficient APS"
+        );
+
+        require(
+            aps.allowance(msg.sender, address(this))
+            >= debt,
+            "Approve APS first"
+        );
+
+        bool success = aps.transferFrom(
+            msg.sender,
+            address(this),
+            debt
+        );
+
+        require(success, "APS transfer failed");
+
+        uint256 debtValueETH =
+            apsToETHValue(debt);
+
+        uint256 collateralReward =
+            (debtValueETH *
+            (100 + LIQUIDATION_BONUS))
+            / 100;
+
+        require(
+            collateralReward <=
+            user.collateralETH,
+            "Insufficient collateral"
+        );
+
+        user.collateralETH -= collateralReward;
+
+        user.borrowedAPS = 0;
+        user.borrowTimestamp = 0;
+        user.riskTimestamp = 0;
+
+        (bool ethSuccess, ) =
+            payable(msg.sender).call{
+                value: collateralReward
+            }("");
+
+        require(
+            ethSuccess,
+            "ETH transfer failed"
+        );
+
+        emit Liquidated(
+            msg.sender,
+            borrower,
+            debt,
+            collateralReward
+        );
     }
 
-    //function to get the health factor of a user
-    function getHealthFactor(address user) public view returns (uint256) {
-        uint256 collateralValue = calculateCollateralValue(user);
-        uint256 borrowedValue = userBorrowedValue[user];
+    // =============================================================
+    //                    HEALTH FACTOR LOGIC
+    // =============================================================
 
-        if (borrowedValue == 0) {
+    function getHealthFactor(
+        address userAddress
+    ) public view returns (uint256) {
+
+        Position memory user =
+            positions[userAddress];
+
+        if (user.borrowedAPS == 0) {
             return type(uint256).max;
         }
 
-    return (collateralValue * PRECISION * 100) / (borrowedValue * COLLATERAL_RATIO);
+        uint256 borrowedValueETH =
+            apsToETHValue(user.borrowedAPS);
 
+        return (
+            user.collateralETH *
+            PRECISION *
+            100
+        ) /
+        (
+            borrowedValueETH *
+            COLLATERAL_RATIO
+        );
     }
 
-    //function to liquidate
-    function liquidate(address _user) external returns (bool) {
-        require(getHealthFactor(_user) < 1e18, "Not liquidatable!");
-        require(i_aps.balanceOf(msg.sender) >= userBorrowedValue(_user), "Insufficient funds!");
+    function canLiquidate(
+        address userAddress
+    ) public view returns (bool) {
 
-        uint256 liquidatorValue = userDepositedValue[_user] + (10 * userBorrowedValue[_user]) / 100;
+        Position memory user =
+            positions[userAddress];
 
-        (bool success, ) = i_aps(msg.sender).transferFrom(msg.sender, address(this), userBorrowedValue[_user]);
+        if (
+            getHealthFactor(userAddress)
+            >= PRECISION
+        ) {
+            return false;
+        }
 
-        require(success, "Token transfer failed!");
+        if (user.riskTimestamp == 0) {
+            return false;
+        }
 
-        (bool successs, ) = payable(address(this)).transfer(msg.sender).call{ value : liquidatorValue}(" ");
-
-        require(successs, "Transfer Failed!");
-
-        userBorrowedValue[_user] = 0;
-
-        userDepositedValue[_user] = 0;
-
-        borrowTimestamp[_user] = 0;
-
-        emit Liquidation_Success(msg.sender, _user, userBorrowedValue);
-
-        //call the internal function to update the startrisktimestamp
-        _updateStartRiskTimestamp(_user);
-
-        return true;
+        return (
+            block.timestamp >=
+            user.riskTimestamp +
+            LIQUIDATION_GRACE_PERIOD
+        );
     }
 
-    //internal function to update the startrisktimestamp
-    function _updateStartRiskTimestamp(address _user) internal {
-        uint256 healthFactor = getHealthFactor(_user);
+    function updateRiskStatus(
+        address userAddress
+    ) public {
 
-        // User unhealthy
-        if (healthFactor < 1e18) {
+        uint256 hf =
+            getHealthFactor(userAddress);
 
-            // Start timer if not already started
-            if (userRiskTimestampStart[_user] == 0) {
-                userRiskTimestampStart[_user] = block.timestamp;
-            }
+        Position storage user =
+            positions[userAddress];
 
-            // Check if grace period passed
-            uint256 liquidationTime = userRiskTimestampStart[_user] + LIQUIDATION_GRACE_PERIOD;
+        if (hf < PRECISION) {
 
-            if (block.timestamp >= liquidationTime) {
-                isUserVaiableForLiquidation[_user] = true;
+            if (user.riskTimestamp == 0) {
+                user.riskTimestamp =
+                    block.timestamp;
             }
 
         } else {
-            
-            // User recovered
-            userRiskTimestampStart[_user] = 0;
-            isUserVaiableForLiquidation[_user] = false;
+            user.riskTimestamp = 0;
         }
     }
 
-    //function to calculate the interest on a loan
-    function calculateInterest(address user) public view returns (uint256) {
-        uint256 principal = userBorrowedValue[user];
+    // =============================================================
+    //                     INTEREST FUNCTIONS
+    // =============================================================
 
-        uint256 timeElapsed = block.timestamp - borrowTimestamp[user];
+    function calculateInterest(
+        address userAddress
+    ) public view returns (uint256) {
 
-        return (principal * INTEREST_RATE * timeElapsed) / (100 * 365 days);
+        Position memory user =
+            positions[userAddress];
+
+        if (user.borrowedAPS == 0) {
+            return 0;
+        }
+
+        uint256 timeElapsed =
+            block.timestamp -
+            user.borrowTimestamp;
+
+        return (
+            user.borrowedAPS *
+            INTEREST_RATE *
+            timeElapsed
+        ) /
+        (100 * YEAR);
     }
 
-    //function to get the total repay amount including interest
-    function getRepayAmount(address user) public view returns (uint256)
-    {   
-        return userBorrowedValue[user] + calculateInterest(user);
+    function getRepayAmount(
+        address userAddress
+    ) public view returns (uint256) {
+
+        Position memory user =
+            positions[userAddress];
+
+        return
+            user.borrowedAPS +
+            calculateInterest(userAddress);
     }
 
-    //function to repay borrowed loan
-    function repayLoan(address _user) payable external returns (bool) {
-        //call the updateRiskStartTimestamp internal function
-        _updateStartRiskTimestamp(_user);
+    // =============================================================
+    //                      PRICE UTILITIES
+    // =============================================================
 
-        //calculate the amount to repay
-        uint256 amount = getRepayAmount(_user);
+    function apsToETHValue(
+        uint256 apsAmount
+    ) public view returns (uint256) {
 
-        //require that the user has enough balance to repay their loan
-        require(i_aps.balanceOf(_user) >= amount, "Insufficient funds!");
+        uint256 apsPrice =
+            apsDex.currentPrice();
 
-        //require that the user is not viable for liquidation
-        require(!isUserVaiableForLiquidation, "User is already viable for liquidation!");
-
-        //require that the user actually has borrowed a loan
-        require(userBorrowedValue[_user] != 0, "User doesn't have an existing loan!");
-
-        //transfer the APS tokens to the contract from the user
-        (bool success, ) = i_aps.transferFrom(_user, address(this), amount);
-
-        require(success, "Debt repayment failed!");
-
-        uint256 collateralAmount = userDepositedValue[_user];
-
-        //get back the collataral
-        (bool successs, ) = payable(address(this)).transfer(_user).call{ value : collateralAmount }("");
-
-        require(successs, "Transfer of callateral back to borrower failed!");
-
-        //reset the user borrowed mapping
-        userBorrowedValue[_user] = 0;
-
-        //reset the user collateral mapping
-        userDepositedValue[_user] = 0;
-
-        //reset the user borrow timestamp
-        borrowTimestamp[_user] = 0;
-
-        emit Loan_Repayment_Success(_user, amount);
-
-        return true;
-
+        return
+            (apsAmount * apsPrice)
+            / 1e18;
     }
 
+    // =============================================================
+    //                         RECEIVE
+    // =============================================================
+
+    receive() external payable {}
 }

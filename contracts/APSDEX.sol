@@ -42,12 +42,14 @@ contract APSDEX {
      }
 
      //function to get the current price of the shares in the pool
-     function currentPrice() public view returns (uint256) {
-        if (totalLiquidity == 0) {
-            return pricePerShare; // Return initial price if no liquidity
-        }
-        return (totalLiquidity * pricePerShare) / totalLiquidity; // Price per share based on total liquidity
-     }
+    function currentPrice() public view returns (uint256) {
+        uint256 ethReserve = address(this).balance;
+        uint256 tokenReserve = token.balanceOf(address(this));
+
+        require(tokenReserve > 0, "No liquidity");
+
+        return (ethReserve * 1e18) / tokenReserve;
+    }
 
      //function to calculate the amount of xInput required to get a certain amount of yOutput given the reserves of both tokens in the pool
      function calculateXInput(uint256 _yOutput, uint256 _xReserves, uint256 _yReserves) public pure returns (uint256 xInput) {
