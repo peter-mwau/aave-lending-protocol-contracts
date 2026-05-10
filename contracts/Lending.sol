@@ -84,8 +84,8 @@ contract Lending is Ownable {
     //                   COLLATERAL FUNCTIONS
     // =============================================================
 
-    function addCollateral() external payable {
-        require(msg.value > 0, "Must deposit ETH");
+    function addCollateral(uint256 _amount) external payable {
+        require(msg.value == _amount, "Must deposit ETH");
 
         positions[msg.sender].collateralETH += msg.value;
 
