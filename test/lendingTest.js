@@ -149,3 +149,32 @@ describe("Borrow APS", function () {
     })
 })
 
+describe("Repay Loan", function () {
+    it("Should revert if the user has no active loan", async function () {
+        const collateral = ethers.parseEther("100");
+        const initalLiquidity = ethers.parseEther("30000");
+        const ethForPool = ethers.parseEther("1000");
+        const lendingLiquidity = ethers.parseEther("5000");
+
+        //allow apsdex contract to spend aps token on its behalf
+        await aps.connect(owner).approve(apsDex.target, initalLiquidity);
+
+        //mint some more aps tokens to the owner
+        await aps.connect(owner).mintToken(owner.address, ethers.parseEther("10000"));
+
+        //add the inital APS tokens to the ETH/APS pool as the inital liquidity
+        await apsDex.connect(owner).initializePool(initalLiquidity);
+
+        //add eth to the APSDEX pool(ETH/APS) so as to determine the price of APS to ETH
+        await owner.sendTransaction({ to: apsDex.target, value: ethForPool });
+
+        //add 5000 1e18 APS tokens to the lending contract to facilitate borrowing of APS token
+        await aps.connect(owner).transfer(lending.target, lendingLiquidity);
+
+        //provide collateral
+        await lending.connect(borrower).addCollateral(collateral, { value: collateral });
+
+        await expect(lending.connect(borrower).repayLoan()).to.be.revertedWith("No active loan");
+    })
+})
+
