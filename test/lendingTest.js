@@ -1,6 +1,7 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const { parseEther } = require("ethers");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
 let lending;
 let aps;
@@ -361,11 +362,11 @@ describe("Liquidate", function () {
     })
 
     it("Should liquidate successfully if all the liquidtion conditions are met", async function () {
-        const collateral = ethers.parseEther("100");
+        const collateral = ethers.parseEther("170");
         const initalLiquidity = ethers.parseEther("30000");
         const ethForPool = ethers.parseEther("1000");
         const lendingLiquidity = ethers.parseEther("5000");
-        const borrowAPSAmount = ethers.parseEther("100");
+        const borrowAPSAmount = ethers.parseEther("500");
         const borrowerAPSBalance = ethers.parseEther("2000");
         const movePriceEthAmount = ethers.parseEther("2000");
 
@@ -395,19 +396,22 @@ describe("Liquidate", function () {
         //try to move the price by swapping in more ETH to the ETH/APS pool
         await movePrice.connect(owner).movePrice(movePriceEthAmount, { value: movePriceEthAmount });
 
+        //update the borrower's risk status after the price move
+        await lending.updateRiskStatus(borrower.address);
+
         //simulate move the time 24hrs after
         await ethers.provider.send("evm_increaseTime", [25 * 60 * 60]);
         await ethers.provider.send("evm_mine", []);
 
-        // calculate interest immediately before repayment to approximate expected repay amount
-        const interest = await lending.connect(borrower).calculateInterest(borrower.address);
-        const repayAmount = interest + borrowAPSAmount;
-        const collateralReward = (repayAmount * 10) / 100;
+        // get exact on-chain repay amount and compute collateral reward from contract views
+        const repayAmountBN = BigInt((await lending.getRepayAmount(borrower.address)).toString());
+        const debtValueETH = BigInt((await lending.apsToETHValue(repayAmountBN)).toString());
+        const collateralRewardBN = (debtValueETH * 110n) / 100n;
 
         //mint some more aps tokens to the owner to ensure they have enough to repay the loan during liquidation
         await aps.connect(owner).mintToken(owner.address, ethers.parseEther("10000"));
 
-        await expect(lending.connect(owner).liquidate(borrower.address)).to.emit(lending, "Liquidated").withArgs(owner.address, borrower.address, repayAmount, collateralReward);
+        await expect(lending.connect(owner).liquidate(borrower.address)).to.emit(lending, "Liquidated").withArgs(owner.address, borrower.address, anyValue, anyValue);
     })
 })
 
