@@ -44,7 +44,7 @@ beforeEach(async function () {
 
     //deploy the move price contract
     const MovePrice = await ethers.getContractFactory("MovePrice");
-    movePrice = await MovePrice.deploy(apsAddress, apsAddress);
+    movePrice = await MovePrice.deploy(apsAddress, apsDexAddress);
 
     await movePrice.waitForDeployment();
 
@@ -322,9 +322,9 @@ describe("Repay Loan", function () {
 })
 
 describe("Liquidate", function () {
-    it("Should liquidate successfully if all the liquidtion conditions are met", async function () {
-        const collateral = ethers.parseEther("100");
-        const initalLiquidity = ethers.parseEther("30000");
+    it("Should revert if all the liquidtion conditions are not met", async function () {
+        const collateral = ethers.parseEther("600");
+        const initalLiquidity = ethers.parseEther("3000");
         const ethForPool = ethers.parseEther("1000");
         const lendingLiquidity = ethers.parseEther("5000");
         const borrowAPSAmount = ethers.parseEther("500");
@@ -332,30 +332,82 @@ describe("Liquidate", function () {
         const movePriceEthAmount = ethers.parseEther("2000");
 
         //add collateral
-        await lending.connect(borrower).addCollateral(collateral, { value: collateral }(""));
+        await lending.connect(borrower).addCollateral(collateral, { value: collateral });
+
+        //approve the lending contract to use aps tokens
+        await aps.connect(owner).approve(lending.target, lendingLiquidity);
+
+        //approve APSDEX to use aps tokens
+        await aps.connect(owner).approve(apsDex.target, initalLiquidity);
 
         //let owner add liquidity
         await apsDex.connect(owner).initializePool(initalLiquidity);
 
         //add eth to the ETH/APS pool or the DEX
-        await apsDex.connect(owner).transfer(ethForPool, { value: ethForPool }(""));
+        await owner.sendTransaction({ to: apsDex.target, value: ethForPool });
 
         //add some aps tokens to the lending contract to facilitate borrowing
         await aps.connect(owner).transfer(lending.target, lendingLiquidity);
 
+        //let the borrower take some aps loan
+        await lending.connect(borrower).borrowAPS(borrowAPSAmount);
+
+        //ensure owner has enough ETH to perform the price move
+        await ethers.provider.send("hardhat_setBalance", [owner.address, '0x' + ethers.parseEther("5000").toString(16)]);
+        //try to move the price by swapping in more ETH to the ETH/APS pool
+        await movePrice.connect(owner).movePrice(movePriceEthAmount, { value: movePriceEthAmount });
+
+        await expect(lending.connect(owner).liquidate(borrower.address)).to.be.revertedWith("Not liquidatable");
+    })
+
+    it("Should liquidate successfully if all the liquidtion conditions are met", async function () {
+        const collateral = ethers.parseEther("100");
+        const initalLiquidity = ethers.parseEther("30000");
+        const ethForPool = ethers.parseEther("1000");
+        const lendingLiquidity = ethers.parseEther("5000");
+        const borrowAPSAmount = ethers.parseEther("100");
+        const borrowerAPSBalance = ethers.parseEther("2000");
+        const movePriceEthAmount = ethers.parseEther("2000");
+
         //approve the lending contract to use aps tokens
-        await aps.approve(lending.target, lendingLiquidity);
+        await aps.connect(owner).approve(lending.target, lendingLiquidity);
+
+        //approve APSDEX to use aps tokens
+        await aps.connect(owner).approve(apsDex.target, initalLiquidity);
+
+        //add collateral
+        await lending.connect(borrower).addCollateral(collateral, { value: collateral });
+
+        //let owner add liquidity
+        await apsDex.connect(owner).initializePool(initalLiquidity);
+
+        //add eth to the ETH/APS pool or the DEX
+        await owner.sendTransaction({ to: apsDex.target, value: ethForPool });
+
+        //add some aps tokens to the lending contract to facilitate borrowing
+        await aps.connect(owner).transfer(lending.target, lendingLiquidity);
 
         //let the borrower take some aps loan
         await lending.connect(borrower).borrowAPS(borrowAPSAmount);
 
+        //ensure owner has enough ETH to perform the price move
+        await ethers.provider.send("hardhat_setBalance", [owner.address, '0x' + ethers.parseEther("5000").toString(16)]);
         //try to move the price by swapping in more ETH to the ETH/APS pool
-        await movePrice.connect(owner).movePrice(movePriceEthAmount, { value: movePriceEthAmount }(""));
+        await movePrice.connect(owner).movePrice(movePriceEthAmount, { value: movePriceEthAmount });
 
         //simulate move the time 24hrs after
         await ethers.provider.send("evm_increaseTime", [25 * 60 * 60]);
         await ethers.provider.send("evm_mine", []);
 
+        // calculate interest immediately before repayment to approximate expected repay amount
+        const interest = await lending.connect(borrower).calculateInterest(borrower.address);
+        const repayAmount = interest + borrowAPSAmount;
+        const collateralReward = (repayAmount * 10) / 100;
+
+        //mint some more aps tokens to the owner to ensure they have enough to repay the loan during liquidation
+        await aps.connect(owner).mintToken(owner.address, ethers.parseEther("10000"));
+
+        await expect(lending.connect(owner).liquidate(borrower.address)).to.emit(lending, "Liquidated").withArgs(owner.address, borrower.address, repayAmount, collateralReward);
     })
 })
 

@@ -20,7 +20,7 @@ contract MovePrice{
     }
 
     //function to move the price by swapping in APS tokens into the ETH/APS pool
-    function movePrice(int256 size) public {
+    function movePrice(int256 size) public payable {
 
         if(size > 0){
             i_apsDex.swap{ value : uint256(size) }(uint256(size));
