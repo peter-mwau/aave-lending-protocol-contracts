@@ -386,9 +386,10 @@ contract Lending is Ownable {
         return true;
     }
 
-    function calculateStakingYield(uint256 _amount, address _user) public payable returns (uint256) {
-        uint256 elapsedTime = block.timestamp - positions[_user].stakeTimestamp;
-        _amount = positions[_user].collateralETH;
+    function calculateStakingYield(uint256 _amount, address _user) public view returns (uint256) {
+        Position memory position = positions[user];
+        uint256 elapsedTime = block.timestamp - position.stakeTimestamp;
+        _amount = position.collateralETH;
         uint256 yield = (_amount * STAKING_APR * elapsedTime) / (100 * YEAR);
 
         return yield;
