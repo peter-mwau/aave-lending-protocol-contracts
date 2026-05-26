@@ -22,6 +22,8 @@ contract Lending is Ownable {
     uint256 public constant INTEREST_RATE = 10; // 10% APR
     uint256 public constant YEAR = 365 days;
 
+    uint256 public constant STAKING_APR = 15;
+
     uint256 public constant LIQUIDATION_GRACE_PERIOD = 24 hours;
 
     // =============================================================
@@ -33,6 +35,7 @@ contract Lending is Ownable {
         uint256 borrowedAPS;
         uint256 borrowTimestamp;
         uint256 riskTimestamp;
+        uint256 stakeTimestamp;
     }
 
     mapping(address => Position) public positions;
@@ -68,6 +71,11 @@ contract Lending is Ownable {
         uint256 collateralSeized
     );
 
+    event StakeSuccess(
+        address indexed _user,
+        uint256 indexed _amount
+    );
+
     // =============================================================
     //                        CONSTRUCTOR
     // =============================================================
@@ -90,6 +98,8 @@ contract Lending is Ownable {
         positions[msg.sender].collateralETH += msg.value;
 
         emit CollateralDeposited(msg.sender, msg.value);
+
+        stake(msg.sender);
     }
 
     function withdrawCollateral(
@@ -358,6 +368,30 @@ contract Lending is Ownable {
         } else {
             user.riskTimestamp = 0;
         }
+    }
+
+    // =============================================================
+    //                     SIMULATE STAKING YIELD
+    // =============================================================
+
+    function stake(address _user) public returns (bool) {
+        require(positions[_user].collateralEth != 0, "No collateral to stake!");
+
+        positions[_user].stakeTimestamp = block.timestamp;
+
+        uint256 _amount = positions[_user].collateralEth;
+
+        emit StakeSuccess(_user, _amount);
+
+        return true;
+    }
+
+    function calculateStakingYield(uint256 _amount, address _user) public payable returns (uint256) {
+        uint256 elapsedTime = block.timestamp - positions[_user].stakeTimestamp;
+        _amount = positions[_user].collateralETH;
+        uint256 yield = (_amount * STAKING_APR * elapsedTime) / (100 * YEAR);
+
+        return yield;
     }
 
     // =============================================================
