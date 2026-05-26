@@ -76,6 +76,11 @@ contract Lending is Ownable {
         uint256 indexed _amount
     );
 
+    event DebtReduced(
+        address indexed _user,
+        uint256 indexed _amount
+    );
+
     // =============================================================
     //                        CONSTRUCTOR
     // =============================================================
@@ -174,6 +179,8 @@ contract Lending is Ownable {
         require(success, "APS transfer failed");
 
         emit Borrowed(msg.sender, amount);
+
+        harvestCollateralYield(msg.sender);
     }
 
     // =============================================================
@@ -216,6 +223,8 @@ contract Lending is Ownable {
         user.riskTimestamp = 0;
 
         emit Repaid(msg.sender, repayAmount);
+
+        harvestCollateralYield(msg.sender);
     }
 
     // =============================================================
@@ -292,6 +301,8 @@ contract Lending is Ownable {
             debt,
             collateralReward
         );
+
+        harvestCollateralYield(borrower);
     }
 
     // =============================================================
@@ -397,11 +408,34 @@ contract Lending is Ownable {
         return yield;
     }
 
-    function reduceDebt(address user, uint256 amount) external {
+    function reduceDebt(address user, uint256 amount) public {
         require(positions[user].borrowedAPS >= amount, "Amount exceeds debt");
         positions[user].borrowedAPS -= amount;
         positions[user].stakeTimestamp = block.timestamp; // reset stake timestamp after debt reduction
         updateRiskStatus(user);
+    }
+
+    //function to harvest the collateral yield and reduce the user's debt accordingly
+    function harvestCollateralYield(address _user) public returns (uint256) {
+        Lending.Position memory position = getPosition(_user);
+        require(position.collateralETH != 0, "No collateral!");
+
+        uint256 yield = calculateStakingYield(_user);
+
+        //convert it to the borrowed token(APS)
+        uint256 yieldInAPS = (yield * 1e18) / apsDex.currentPrice();
+
+        // user debt in APS
+        uint256 debt = getRepayAmount(_user);
+
+        if(yieldInAPS >= ((10 * debt) / 100)) {
+            require(yieldInAPS <= debt, "Yield exceeds debt");
+            reduceDebt(_user, yieldInAPS);
+        }
+
+        emit DebtReduced(_user, yieldInAPS);
+
+        return yieldInAPS;
     }
 
     // =============================================================
@@ -443,7 +477,7 @@ contract Lending is Ownable {
             calculateInterest(userAddress);
     }
 
-    function getPosition(address user) external view returns (Position memory)
+    function getPosition(address user) public view returns (Position memory)
     {
         return positions[user];
     }
