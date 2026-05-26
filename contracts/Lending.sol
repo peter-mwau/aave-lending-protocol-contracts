@@ -375,11 +375,11 @@ contract Lending is Ownable {
     // =============================================================
 
     function stake(address _user) public returns (bool) {
-        require(positions[_user].collateralEth != 0, "No collateral to stake!");
+        require(positions[_user].collateralETH != 0, "No collateral to stake!");
 
         positions[_user].stakeTimestamp = block.timestamp;
 
-        uint256 _amount = positions[_user].collateralEth;
+        uint256 _amount = positions[_user].collateralETH;
 
         emit StakeSuccess(_user, _amount);
 
