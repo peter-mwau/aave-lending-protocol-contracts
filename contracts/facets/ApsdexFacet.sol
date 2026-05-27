@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { LibDiamond } from "../DiamondLibrary/LibDiamond.sol";
 
-contract APSDEXFacet {
+contract ApsdexFacet {
     event LiquidityInitialized(address indexed provider, uint256 ETH_amount, uint256 APS_amount);
     event LiquidityProvided(address indexed provider, uint256 liquidityMinted, uint256 ethAmount, uint256 tokenAmount);
     event LiquidityRemoved(address indexed provider, uint256 liquidityBurned, uint256 ethAmount, uint256 tokenAmount);
