@@ -3,10 +3,17 @@ pragma solidity ^0.8.24;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IDiamondCut } from "../DiamondInterfaces/IDiamondCut.sol";
+import { APS } from "../APS.sol";
+import { APSDEX } from "../APSDEX.sol";
+import { EcosystemLib } from "./EcosystemLib.sol";
 
 library LibDiamond {
     bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("diamond.standard.diamond.storage");
     bytes32 constant APSDEX_STORAGE_POSITION = keccak256("apsdex.storage");
+    bytes32 constant ECOSYSTEM_DATA_STORAGE_POSITION = keccak256("ecosystem.data.storage");
+    bytes32 constant FLASHLOAN_STORAGE_POSITION = keccak256("flashloan.storage");
+    bytes32 constant LENDING_STORAGE_POSITION = keccak256("lending.storage");
+    bytes32 constant MOVEPRICE_STORAGE_POSITION = keccak256("moveprice.storage");
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event DiamondCut(IDiamondCut.FacetCut[] _diamondCut, address _init, bytes _calldata);
@@ -38,6 +45,34 @@ library LibDiamond {
         mapping(address => uint256) liquidity;
     }
 
+    struct EcosystemDataStorage {
+        EcosystemLib.Data data;
+    }
+
+    struct FlashLoanFacetStorage {
+        address payable owner;
+        mapping(address => uint256) userOwnedFunds;
+    }
+
+    struct LendingPosition {
+        uint256 collateralETH;
+        uint256 borrowedAPS;
+        uint256 borrowTimestamp;
+        uint256 riskTimestamp;
+        uint256 stakeTimestamp;
+    }
+
+    struct LendingFacetStorage {
+        address aps;
+        address apsDex;
+        mapping(address => LendingPosition) positions;
+    }
+
+    struct MovePriceFacetStorage {
+        address aps;
+        address apsDex;
+    }
+
     function diamondStorage() internal pure returns (DiamondStorage storage ds) {
         bytes32 position = DIAMOND_STORAGE_POSITION;
         assembly {
@@ -49,6 +84,34 @@ library LibDiamond {
         bytes32 position = APSDEX_STORAGE_POSITION;
         assembly {
             ds.slot := position
+        }
+    }
+
+    function ecosystemDataStorage() internal pure returns (EcosystemDataStorage storage eds) {
+        bytes32 position = ECOSYSTEM_DATA_STORAGE_POSITION;
+        assembly {
+            eds.slot := position
+        }
+    }
+
+    function flashLoanFacetStorage() internal pure returns (FlashLoanFacetStorage storage fs) {
+        bytes32 position = FLASHLOAN_STORAGE_POSITION;
+        assembly {
+            fs.slot := position
+        }
+    }
+
+    function lendingFacetStorage() internal pure returns (LendingFacetStorage storage ls) {
+        bytes32 position = LENDING_STORAGE_POSITION;
+        assembly {
+            ls.slot := position
+        }
+    }
+
+    function movePriceFacetStorage() internal pure returns (MovePriceFacetStorage storage ms) {
+        bytes32 position = MOVEPRICE_STORAGE_POSITION;
+        assembly {
+            ms.slot := position
         }
     }
 

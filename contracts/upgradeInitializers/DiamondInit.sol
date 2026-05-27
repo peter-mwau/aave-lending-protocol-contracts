@@ -6,10 +6,18 @@ import { IERC165 } from "../DiamondInterfaces/IERC165.sol";
 import { IDiamondCut } from "../DiamondInterfaces/IDiamondCut.sol";
 import { IDiamondLoupe } from "../DiamondInterfaces/IDiamondLoupe.sol";
 import { IERC173 } from "../DiamondInterfaces/IERC173.sol";
+import { EcosystemLib } from "../DiamondLibrary/EcosystemLib.sol";
 import { LibDiamond } from "../DiamondLibrary/LibDiamond.sol";
 
 contract DiamondInit {
     function init(address tokenAddress) external {
+        LibDiamond.EcosystemDataStorage storage ecosystem = LibDiamond.ecosystemDataStorage();
+        EcosystemLib.initialize(ecosystem.data);
+        ecosystem.data.apsToken = tokenAddress;
+        ecosystem.data.apsDex = address(this);
+        ecosystem.data.apsdexToken = tokenAddress;
+        ecosystem.data.apsdexEnabled = true;
+
         LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
         ds.supportedInterfaces[type(IERC165).interfaceId] = true;
         ds.supportedInterfaces[type(IDiamondCut).interfaceId] = true;
