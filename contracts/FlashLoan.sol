@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.24;
 
@@ -7,71 +7,59 @@ import { FlashLoanSimpleReceiverBase } from "@aave/core-v3/contracts/flashloan/b
 import { IPoolAddressesProvider } from "@aave/core-v3/contracts/interfaces/IPoolAddressesProvider.sol";
 
 contract FlashLoan is FlashLoanSimpleReceiverBase {
-    // ILendingPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
+  address payable public owner;
+  mapping(address => uint256) public userOwnedFunds;
 
-    
+  event FundsWithdrawn(address indexed owner, uint256 amount);
 
-    event FundsWithdrawn(address indexed owner, uint256 amount);
+  modifier onlyOwner() {
+    require(msg.sender == owner, "Only the contract owner can call this function");
+    _;
+  }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only the contract owner can call this function");
-        _;
-    }
+  constructor(address _addressProvider)
+    FlashLoanSimpleReceiverBase(IPoolAddressesProvider(_addressProvider))
+  {
+    owner = payable(msg.sender);
+  }
 
-    constructor(address _addressProvider)
-      FlashLoanSimpleReceiverBase(IPoolAddressesProvider(_addressProvider))
-    {
-      owner = payable(msg.sender);
-    }
+  function executeOperation(
+    address asset,
+    uint256 amount,
+    uint256 premium,
+    address initiator,
+    bytes calldata params
+  ) external override returns (bool) {
+    initiator;
+    params;
 
-    function executeOperation(
-      address asset,
-      uint256 amount,
-      uint256 premium,
-      address initiator,
-      bytes calldata params
-    ) external override returns (bool) {
-        // Your custom logic goes here
+    userOwnedFunds[asset] += amount + premium;
+    IERC20(asset).approve(address(POOL), userOwnedFunds[asset]);
+    return true;
+  }
 
-        userOwnedFunds[asset] += amount + premium;
-        // Repay the flash loan
-        IERC20(asset).approve(address(POOL), userOwnedFunds[asset]);
-        
-        return true;
-     }
+  function requestFlashLoanSimple(address _asset, uint256 _amount) external returns (bool) {
+    bytes memory params = "";
+    uint16 referralCode = 0;
 
-    function requestFlashLoanSimple(address _asset, uint256 _amount) external returns (bool){
-      address receiverAddress = address(this);
-      address asset = _asset;
-      uint256 amount = _amount;
-      bytes memory params = "";
-      uint16  referralCode = 0;
+    POOL.flashLoanSimple(address(this), _asset, _amount, params, referralCode);
+    return true;
+  }
 
-        POOL.flashLoanSimple(
-          receiverAddress,
-          asset,
-          amount, 
-          params,
-          referralCode
-      );
-      return true;
-     }
+  function getBalance(address _asset) external view returns (uint256) {
+    return IERC20(_asset).balanceOf(address(this));
+  }
 
-     function getBalance(address _asset) external view returns (uint256) {
-        return IERC20(_asset).balanceOf(address(this));
-     }
+  function withdrawFunds(address _tokenAddress) external onlyOwner returns (bool) {
+    IERC20 token = IERC20(_tokenAddress);
+    uint256 balance = token.balanceOf(address(this));
+    require(balance > 0, "No funds to withdraw");
 
-     function withdrawFunds(address _tokenAddress) external onlyOwner returns (bool) {
-      IERC20 token = IERC20(_tokenAddress);
-      uint256 balance = token.balanceOf(address(this));
-      require(balance > 0, "No funds to withdraw");
+    token.transfer(owner, balance);
 
-      token.transfer(owner, balance);
+    emit FundsWithdrawn(owner, balance);
+    return true;
+  }
 
-      emit FundsWithdrawn(owner, balance);
-      return true;
-     }
-
-     receive() external payable {}
-
+  receive() external payable {}
 }
