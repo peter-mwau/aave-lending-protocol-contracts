@@ -3,6 +3,13 @@ const { ethers, network } = require("hardhat");
 async function deployDiamondFixture() {
     const [owner, borrower, lender, liquidator] = await ethers.getSigners();
 
+    // ensure test accounts have sufficient ETH for large transactions during tests
+    // give the owner a large balance (10000 ETH) to cover large pool seeding in tests
+    await ethers.provider.send("hardhat_setBalance", [
+        owner.address,
+        "0x" + ethers.parseEther("10000").toString(16)
+    ]);
+
     const APS = await ethers.getContractFactory("APS");
     const aps = await APS.deploy();
     await aps.waitForDeployment();

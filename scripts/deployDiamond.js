@@ -73,6 +73,53 @@ async function main() {
         deploymentRecord.MockPoolAddressesProvider = flashLoanPool.mockProviderAddress;
     }
 
+    // Attempt to discover facet addresses via the DiamondLoupeFacet
+    try {
+        const diamondLoupe = await ethers.getContractAt("DiamondLoupeFacet", apsDexAddress);
+        const facetAddrs = await diamondLoupe.facetAddresses();
+
+        const facetNames = [
+            "DiamondCutFacet",
+            "DiamondLoupeFacet",
+            "OwnershipFacet",
+            "ApsdexFacet",
+            "FlashLoanFacet",
+            "MovePriceFacet",
+            "LendingFacet",
+        ];
+
+        const repSelector = {
+            DiamondCutFacet: "diamondCut",
+            DiamondLoupeFacet: "facets",
+            OwnershipFacet: "owner",
+            ApsdexFacet: "token",
+            FlashLoanFacet: "initializeFlashLoan",
+            MovePriceFacet: "initializeMovePrice",
+            LendingFacet: "initializeLending",
+        };
+
+        const facets = {};
+        for (const name of facetNames) {
+            try {
+                const factory = await ethers.getContractFactory(name);
+                const selector = factory.interface.getSighash(repSelector[name]);
+                const addr = await diamondLoupe.facetAddress(selector);
+                if (addr && addr !== ethers.ZeroAddress) {
+                    facets[name] = addr;
+                }
+            } catch (e) {
+                // ignore missing facet contract in local workspace
+            }
+        }
+
+        if (Object.keys(facets).length > 0) {
+            deploymentRecord.Facets = facets;
+            deploymentRecord.FacetAddresses = facetAddrs;
+        }
+    } catch (err) {
+        // non-fatal: if loupe not present or call fails, skip
+    }
+
     const registryPath = await writeRegistry(network.name, deploymentRecord);
 
     console.log("APS deployed to:", apsAddress);

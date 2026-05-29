@@ -75,6 +75,9 @@ contract LendingFacet {
         LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
         LibDiamond.LendingPosition storage user = ls.positions[msg.sender];
 
+        // ensure the caller has posted collateral before performing price lookups
+        require(user.collateralETH > 0, "Insufficient collateral");
+
         uint256 newBorrowedAmount = user.borrowedAPS + amount;
         uint256 borrowedValueETH = apsToETHValue(newBorrowedAmount);
         uint256 collateralRatio = (user.collateralETH * 100) / borrowedValueETH;
