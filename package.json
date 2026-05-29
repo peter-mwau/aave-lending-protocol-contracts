@@ -1,9 +1,9 @@
 {
     "scripts": 
     {
-        "deploy:all": "hardhat run scripts/deployAll.js",
-        "deploy:diamond": "hardhat run scripts/apsDeploy.js",
-        "upgrade:diamond": "hardhat run scripts/upgradeDiamond.js",
+        "deploy:all": "node scripts/runWithNetwork.js scripts/deployAll.js",
+        "deploy:diamond": "node scripts/runWithNetwork.js scripts/apsDeploy.js",
+        "upgrade:diamond": "node scripts/runWithNetwork.js scripts/upgradeDiamond.js",
         "test": "hardhat test"
     },
     "devDependencies": 
