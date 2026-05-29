@@ -4,8 +4,6 @@
         "deploy:all": "hardhat run scripts/deployAll.js",
         "deploy:diamond": "hardhat run scripts/apsDeploy.js",
         "upgrade:diamond": "hardhat run scripts/upgradeDiamond.js",
-        "init:flashloan": "hardhat run scripts/flashLoanDeploy.js",
-        "init:moveprice": "hardhat run scripts/movePriceDeploy.js",
         "test": "hardhat test"
     },
     "devDependencies": 
