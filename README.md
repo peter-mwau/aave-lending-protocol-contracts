@@ -25,6 +25,12 @@ Current full deployment command:
 npm run deploy:all -- --network hardhat
 ```
 
+You can also pass the network directly with npm, for example:
+
+```bash
+npm run deploy:all --network sepolia
+```
+
 The sequence is:
 
 1. Deploy APS token.
