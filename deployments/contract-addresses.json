@@ -26,9 +26,10 @@
     "MockPoolAddressesProvider": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
   },
   "sepolia": {
-    "deployedAt": "2026-05-29T12:13:14.062Z",
+    "deployedAt": "2026-05-29T12:18:14.282Z",
     "deployer": "0xcE59326853B8EfE539882137d16F826fE46BDD5c",
-    "status": "aps-deployment-broadcast",
-    "APS": "0x553f80502d0018aEfE0B67485d31BF704Cf82D8A"
+    "status": "apsdex-deployment-broadcast",
+    "APS": "0x334fdf7D8B127eBf19a519A132f570da43E761DC",
+    "APSDEX": "0x8e0dC2333FBbA6E1eeF7a640eB879c8529932B6B"
   }
 }

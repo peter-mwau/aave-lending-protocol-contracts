@@ -93,12 +93,11 @@ async function main() {
         deploymentRecord.APS = apsAddress;
         deploymentRecord.status = "aps-deployment-broadcast";
         await writeRegistry(network.name, deploymentRecord);
-        await aps.waitForDeployment();
         console.log("APS deployed at:", apsAddress);
 
         const APSDEX = await ethers.getContractFactory("APSDEX");
         console.log("Deploying APSDEX diamond...");
-        const apsDex = await APSDEX.deploy(apsAddress, await deploymentOverrides(20_000_000));
+        const apsDex = await APSDEX.deploy(apsAddress, await deploymentOverrides(8_000_000));
         const apsDexDeployTx = apsDex.deploymentTransaction();
         if (apsDexDeployTx) {
             console.log("APSDEX deployment tx:", apsDexDeployTx.hash);
