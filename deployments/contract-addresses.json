@@ -26,10 +26,27 @@
     "MockPoolAddressesProvider": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
   },
   "sepolia": {
-    "deployedAt": "2026-05-29T12:18:14.282Z",
+    "deployedAt": "2026-05-30T09:27:08.323Z",
     "deployer": "0xcE59326853B8EfE539882137d16F826fE46BDD5c",
     "status": "apsdex-deployment-broadcast",
-    "APS": "0x334fdf7D8B127eBf19a519A132f570da43E761DC",
-    "APSDEX": "0x8e0dC2333FBbA6E1eeF7a640eB879c8529932B6B"
+    "APS": "0x68Aeae2F65a32DD9A7a98B00C73c82A3eb0853BA",
+    "APSDEX": "0x311BcEdF066c297b83011b481F8d93aE51B894C7",
+    "DiamondInit": "0xa3100c53777B9CDD9F253eD6A305f107c48A3329",
+    "DiamondCutFacet": "0xcd0bcC823b8a28F091E3eC527A9EF993Abee44BA",
+    "DiamondLoupeFacet": "0xd056358f896447e1a1B154b9440C88d211Ff0eD3",
+    "OwnershipFacet": "0x5B4f797103010f9955F77a61916a02e0D38577F6",
+    "ApsdexFacet": "0x29704AdF8262cf52a201D8A3F6Be60C260a14bAa",
+    "FlashLoanFacet": "0x824a8d9e7Dd8B844C367D86BB75a22D6502043e4",
+    "MovePriceFacet": "0x38a374a475705118FFe9A0aEb6416185B77213b2",
+    "LendingFacet": "0x02C9e6f0CB1c2111Cb6572146002a18df0AaADF8",
+    "Facets": {
+      "DiamondCutFacet": "0xcd0bcC823b8a28F091E3eC527A9EF993Abee44BA",
+      "DiamondLoupeFacet": "0xd056358f896447e1a1B154b9440C88d211Ff0eD3",
+      "OwnershipFacet": "0x5B4f797103010f9955F77a61916a02e0D38577F6",
+      "ApsdexFacet": "0x29704AdF8262cf52a201D8A3F6Be60C260a14bAa",
+      "FlashLoanFacet": "0x824a8d9e7Dd8B844C367D86BB75a22D6502043e4",
+      "MovePriceFacet": "0x38a374a475705118FFe9A0aEb6416185B77213b2",
+      "LendingFacet": "0x02C9e6f0CB1c2111Cb6572146002a18df0AaADF8"
+    }
   }
 }
