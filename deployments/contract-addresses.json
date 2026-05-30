@@ -1,10 +1,10 @@
 {
   "hardhat": {
-    "deployedAt": "2026-05-30T09:31:28.513Z",
+    "deployedAt": "2026-05-30T10:00:35.685Z",
     "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "status": "complete",
     "APS": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    "APSDEX": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "MainDiamond": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
     "DiamondInit": "0xA22D78bc37cE77FeE1c44F0C2C0d2524318570c3",
     "Facets": {
       "DiamondCutFacet": "0xCafac3dD18aC6c6e92c921884f9E4176737C052c",
@@ -18,20 +18,9 @@
     "FlashLoanPool": "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951"
   },
   "sepolia": {
-    "deployedAt": "2026-05-30T09:30:35.513Z",
-    "deployer": "0xcE59326853B8EfE539882137d16F826fE46BDD5c",
-    "status": "apsdex-deployment-broadcast",
-    "APS": "0xF2E28EdFbE78Bc1b246839a00dd3b20C6B57707e",
-    "APSDEX": "0xc4353c1D61d6cC0E168F795D2c8aca9B2dc39320",
-    "DiamondInit": "0x7F3EFF2edDa431A994d6630Fe554E0371267Ed45",
-    "Facets": {
-      "DiamondCutFacet": "0x152afA198739CFe349DD8BE479A237A3653B7Bcf",
-      "DiamondLoupeFacet": "0x807DF221da206f207eb33CEc22536D732c4E0771",
-      "OwnershipFacet": "0x7a43faA24a6D89C7db953f645cFe007baf8fA0b6",
-      "ApsdexFacet": "0x23F10c8AF43c84d00653260b6A8ae699f732208F",
-      "FlashLoanFacet": "0x5Ef7511015795fB290383DDF9D5a9CaE8406dC27",
-      "MovePriceFacet": "0x63018AfcCD1A1120e7C90783EBF067fb5fE21C03",
-      "LendingFacet": "0x294E61da0F638dEdB7bC9fbf469be80E399FE615"
-    }
+    "deployedAt": "2026-05-30T10:01:11.779Z",
+    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "status": "failed",
+    "error": "insufficient funds for gas * price + value: have 0 want 47253157686000000"
   }
 }

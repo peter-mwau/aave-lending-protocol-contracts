@@ -95,76 +95,78 @@ async function main() {
         await writeRegistry(network.name, deploymentRecord);
         console.log("APS deployed at:", apsAddress);
 
-        const APSDEX = await ethers.getContractFactory("APSDEX");
-        console.log("Deploying APSDEX diamond...");
-        const apsDex = await APSDEX.deploy(apsAddress, await deploymentOverrides(8_000_000));
-        const apsDexDeployTx = apsDex.deploymentTransaction();
-        if (apsDexDeployTx) {
-            console.log("APSDEX deployment tx:", apsDexDeployTx.hash);
-        }
-        const apsDexAddress = await apsDex.getAddress();
-        deploymentRecord.APSDEX = apsDexAddress;
-        const constructorAddresses = deriveConstructorCreateAddresses(apsDexAddress);
-        deploymentRecord.DiamondInit = constructorAddresses.DiamondInit;
-        deploymentRecord.Facets = {
-            DiamondCutFacet: constructorAddresses.DiamondCutFacet,
-            DiamondLoupeFacet: constructorAddresses.DiamondLoupeFacet,
-            OwnershipFacet: constructorAddresses.OwnershipFacet,
-            ApsdexFacet: constructorAddresses.ApsdexFacet,
-            FlashLoanFacet: constructorAddresses.FlashLoanFacet,
-            MovePriceFacet: constructorAddresses.MovePriceFacet,
-            LendingFacet: constructorAddresses.LendingFacet,
-        };
-        deploymentRecord.status = "apsdex-deployment-broadcast";
-        await writeRegistry(network.name, deploymentRecord);
+            const MainDiamond = await ethers.getContractFactory("MainDiamond");
+            console.log("Deploying MainDiamond diamond...");
+            const mainDiamond = await MainDiamond.deploy(apsAddress, await deploymentOverrides(8_000_000));
+            const mainDiamondDeployTx = mainDiamond.deploymentTransaction();
+            if (mainDiamondDeployTx) {
+                console.log("MainDiamond deployment tx:", mainDiamondDeployTx.hash);
+            }
 
-        console.log("Predicted constructor facet addresses:", deploymentRecord.Facets);
-        await apsDex.waitForDeployment();
-        console.log("APSDEX deployed at:", apsDexAddress);
+            const mainDiamondAddress = await mainDiamond.getAddress();
+            deploymentRecord.MainDiamond = mainDiamondAddress;
 
-        deploymentRecord.status = "aps-and-apsdex-deployed";
+            const constructorAddresses = deriveConstructorCreateAddresses(mainDiamondAddress);
+            deploymentRecord.DiamondInit = constructorAddresses.DiamondInit;
+            deploymentRecord.Facets = {
+                DiamondCutFacet: constructorAddresses.DiamondCutFacet,
+                DiamondLoupeFacet: constructorAddresses.DiamondLoupeFacet,
+                OwnershipFacet: constructorAddresses.OwnershipFacet,
+                ApsdexFacet: constructorAddresses.ApsdexFacet,
+                FlashLoanFacet: constructorAddresses.FlashLoanFacet,
+                MovePriceFacet: constructorAddresses.MovePriceFacet,
+                LendingFacet: constructorAddresses.LendingFacet,
+            };
+            deploymentRecord.status = "main-diamond-deployment-broadcast";
+            await writeRegistry(network.name, deploymentRecord);
 
-        const registryPath = await writeRegistry(network.name, deploymentRecord);
+            console.log("Predicted constructor facet addresses:", deploymentRecord.Facets);
+            await mainDiamond.waitForDeployment();
+            console.log("MainDiamond deployed at:", mainDiamondAddress);
 
-        console.log("APS deployed to:", apsAddress);
-        console.log("APSDEX diamond deployed to:", apsDexAddress);
-        console.log("Diamond init deployed to:", constructorAddresses.DiamondInit);
-        console.log("Facet addresses:", deploymentRecord.Facets);
-        console.log("Progress written to registry:", registryPath);
+            deploymentRecord.status = "aps-and-main-diamond-deployed";
 
-        const lendingFacet = await ethers.getContractAt("LendingFacet", apsDexAddress);
-        const movePriceFacet = await ethers.getContractAt("MovePriceFacet", apsDexAddress);
-        const flashLoanFacet = await ethers.getContractAt("FlashLoanFacet", apsDexAddress);
+            const registryPath = await writeRegistry(network.name, deploymentRecord);
 
-        console.log("Initializing LendingFacet...");
-        await lendingFacet.initializeLending(apsAddress, apsDexAddress);
-        console.log("Initializing MovePriceFacet...");
-        await movePriceFacet.initializeMovePrice(apsAddress, apsDexAddress);
+            console.log("APS deployed to:", apsAddress);
+            console.log("MainDiamond deployed to:", mainDiamondAddress);
+            console.log("Diamond init deployed to:", constructorAddresses.DiamondInit);
+            console.log("Facet addresses:", deploymentRecord.Facets);
+            console.log("Progress written to registry:", registryPath);
 
-        console.log("Resolving flash-loan pool address...");
-        const flashLoanPool = await resolveFlashLoanPoolAddress();
-        deploymentRecord.FlashLoanPool = flashLoanPool.poolAddress;
+            const lendingFacet = await ethers.getContractAt("LendingFacet", mainDiamondAddress);
+            const movePriceFacet = await ethers.getContractAt("MovePriceFacet", mainDiamondAddress);
+            const flashLoanFacet = await ethers.getContractAt("FlashLoanFacet", mainDiamondAddress);
 
-        if (flashLoanPool.mockPoolAddress) {
-            deploymentRecord.MockPool = flashLoanPool.mockPoolAddress;
-            deploymentRecord.MockPoolAddressesProvider = flashLoanPool.mockProviderAddress;
-        }
+            console.log("Initializing LendingFacet...");
+            await lendingFacet.initializeLending(apsAddress, mainDiamondAddress);
+            console.log("Initializing MovePriceFacet...");
+            await movePriceFacet.initializeMovePrice(apsAddress, mainDiamondAddress);
 
-        deploymentRecord.status = "flash-loan-pool-resolved";
-        await writeRegistry(network.name, deploymentRecord);
+            console.log("Resolving flash-loan pool address...");
+            const flashLoanPool = await resolveFlashLoanPoolAddress();
+            deploymentRecord.FlashLoanPool = flashLoanPool.poolAddress;
 
-        console.log("Initializing FlashLoanFacet...");
-        await flashLoanFacet.initializeFlashLoan(flashLoanPool.poolAddress);
+            if (flashLoanPool.mockPoolAddress) {
+                deploymentRecord.MockPool = flashLoanPool.mockPoolAddress;
+                deploymentRecord.MockPoolAddressesProvider = flashLoanPool.mockProviderAddress;
+            }
 
-        deploymentRecord.status = "complete";
+            deploymentRecord.status = "flash-loan-pool-resolved";
+            await writeRegistry(network.name, deploymentRecord);
 
-        const finalRegistryPath = await writeRegistry(network.name, deploymentRecord);
+            console.log("Initializing FlashLoanFacet...");
+            await flashLoanFacet.initializeFlashLoan(flashLoanPool.poolAddress);
 
-        console.log("APS deployed to:", apsAddress);
-        console.log("APSDEX diamond deployed to:", apsDexAddress);
-        console.log("Diamond init deployed to:", constructorAddresses.DiamondInit);
-        console.log("Facet addresses:", deploymentRecord.Facets);
-        console.log("Address registry written to:", finalRegistryPath);
+            deploymentRecord.status = "complete";
+
+            const finalRegistryPath = await writeRegistry(network.name, deploymentRecord);
+
+            console.log("APS deployed to:", apsAddress);
+            console.log("MainDiamond deployed to:", mainDiamondAddress);
+            console.log("Diamond init deployed to:", constructorAddresses.DiamondInit);
+            console.log("Facet addresses:", deploymentRecord.Facets);
+            console.log("Address registry written to:", finalRegistryPath);
     } catch (error) {
         deploymentRecord.status = "failed";
         deploymentRecord.error = error instanceof Error ? error.message : String(error);

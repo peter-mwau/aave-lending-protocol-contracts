@@ -25,8 +25,10 @@ async function deployMockPool() {
 }
 
 async function resolveFlashLoanPoolAddress() {
-    if (process.env.FLASH_LOAN_POOL_ADDRESS) {
-        return { poolAddress: ethers.getAddress(process.env.FLASH_LOAN_POOL_ADDRESS) };
+    const flashLoanPoolAddress = process.env.FLASH_LOAN_POOL_ADDRESS || process.env.AAVE_POOLSEPOLIA_ADDRESS;
+
+    if (flashLoanPoolAddress) {
+        return { poolAddress: ethers.getAddress(flashLoanPoolAddress) };
     }
 
     if (network.name === "localhost" || network.name === "hardhat") {

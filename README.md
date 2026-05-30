@@ -8,10 +8,13 @@ The system is centered on one Diamond proxy contract:
 
 - APSDEX (Diamond proxy)
 
+The diamond implementation lives in `contracts/MainDiamond.sol`. `contracts/APSDEX.sol` is a thin compatibility wrapper so the existing deploy scripts and tests can keep using the APSDEX factory name.
+
 Core deployed pieces:
 
 - APS token contract
 - Diamond proxy (APSDEX)
+- Diamond implementation (MainDiamond)
 - Diamond init contract
 - Facets: DiamondCutFacet, DiamondLoupeFacet, OwnershipFacet, ApsdexFacet, LendingFacet, MovePriceFacet, FlashLoanFacet
 
@@ -58,9 +61,13 @@ For local networks, a mock pool and mock provider are deployed automatically whe
 
   - ERC20-style APS token used in lending and repayment flows.
 
+- contracts/MainDiamond.sol
+
+  - Diamond implementation that deploys and registers the facets.
+
 - contracts/APSDEX.sol
 
-  - Diamond proxy deployment and facet wiring.
+  - Thin compatibility wrapper around MainDiamond for existing factory-based deployment and test flows.
 
 - contracts/facets/ApsdexFacet.sol
 
@@ -139,6 +146,7 @@ Current tests target the Diamond architecture via the shared fixture:
 ```text
 contracts/
   APS.sol
+  MainDiamond.sol
   APSDEX.sol
   DiamondInterfaces/
   DiamondLibrary/
@@ -165,5 +173,6 @@ deployments/
 
 ## Notes
 
+- APSDEX is the external entry name used by scripts and tests, while MainDiamond holds the actual constructor and facet wiring logic.
 - Standalone legacy contracts/scripts were removed in favor of a single Diamond-based path.
 - If running on non-local networks, set the pool address in .env (FLASH_LOAN_POOL_ADDRESS or AAVE_POOLSEPOLIA_ADDRESS).
