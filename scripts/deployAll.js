@@ -104,13 +104,6 @@ async function main() {
         }
         const apsDexAddress = await apsDex.getAddress();
         deploymentRecord.APSDEX = apsDexAddress;
-        deploymentRecord.status = "apsdex-deployment-broadcast";
-        await writeRegistry(network.name, deploymentRecord);
-        await apsDex.waitForDeployment();
-        console.log("APSDEX deployed at:", apsDexAddress);
-
-        deploymentRecord.status = "aps-and-apsdex-deployed";
-
         const constructorAddresses = deriveConstructorCreateAddresses(apsDexAddress);
         deploymentRecord.DiamondInit = constructorAddresses.DiamondInit;
         deploymentRecord.DiamondCutFacet = constructorAddresses.DiamondCutFacet;
@@ -129,6 +122,14 @@ async function main() {
             MovePriceFacet: constructorAddresses.MovePriceFacet,
             LendingFacet: constructorAddresses.LendingFacet,
         };
+        deploymentRecord.status = "apsdex-deployment-broadcast";
+        await writeRegistry(network.name, deploymentRecord);
+
+        console.log("Predicted constructor facet addresses:", deploymentRecord.Facets);
+        await apsDex.waitForDeployment();
+        console.log("APSDEX deployed at:", apsDexAddress);
+
+        deploymentRecord.status = "aps-and-apsdex-deployed";
 
         const registryPath = await writeRegistry(network.name, deploymentRecord);
 
