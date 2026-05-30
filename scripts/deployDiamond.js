@@ -78,13 +78,6 @@ async function main() {
     };
 
     deploymentRecord.DiamondInit = constructorAddresses.DiamondInit;
-    deploymentRecord.DiamondCutFacet = constructorAddresses.DiamondCutFacet;
-    deploymentRecord.DiamondLoupeFacet = constructorAddresses.DiamondLoupeFacet;
-    deploymentRecord.OwnershipFacet = constructorAddresses.OwnershipFacet;
-    deploymentRecord.ApsdexFacet = constructorAddresses.ApsdexFacet;
-    deploymentRecord.FlashLoanFacet = constructorAddresses.FlashLoanFacet;
-    deploymentRecord.MovePriceFacet = constructorAddresses.MovePriceFacet;
-    deploymentRecord.LendingFacet = constructorAddresses.LendingFacet;
     deploymentRecord.Facets = {
         DiamondCutFacet: constructorAddresses.DiamondCutFacet,
         DiamondLoupeFacet: constructorAddresses.DiamondLoupeFacet,
