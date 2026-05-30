@@ -1,4 +1,4 @@
-# Aave Loan Test
+# Aave Loan/LenidngProtocol
 
 A Hardhat-based Solidity project using a Diamond proxy architecture for an APS token, DEX, lending, price movement, and flash-loan-related flows.
 
