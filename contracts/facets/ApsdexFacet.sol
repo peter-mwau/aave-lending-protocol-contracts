@@ -29,6 +29,10 @@ contract ApsdexFacet {
         return LibDiamond.apsdexStorage().liquidity[account];
     }
 
+    function initialized() external view returns (bool) {
+        return LibDiamond.apsdexStorage().initialized;
+    }
+
     function initializePool(uint256 apsAmount) external payable returns (bool) {
         LibDiamond.APSDEXStorage storage s = LibDiamond.apsdexStorage();
         require(!s.initialized, "Already initialized");

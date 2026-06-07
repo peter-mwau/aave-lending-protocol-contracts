@@ -10,9 +10,6 @@ library EcosystemLib {
         address flashLoanPool;
         address apsdexToken;
         bool apsdexEnabled;
-
-        //nextPurchaseId
-        bool paused;
     }   
 
     function initialize(Data storage self) internal {

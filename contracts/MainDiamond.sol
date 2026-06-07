@@ -54,19 +54,20 @@ contract MainDiamond {
             functionSelectors: ownershipSelectors
         });
 
-        bytes4[] memory apsdexSelectors = new bytes4[](12);
+        bytes4[] memory apsdexSelectors = new bytes4[](13);
         apsdexSelectors[0] = ApsdexFacet.token.selector;
         apsdexSelectors[1] = ApsdexFacet.ethReserve.selector;
         apsdexSelectors[2] = ApsdexFacet.apsReserve.selector;
         apsdexSelectors[3] = ApsdexFacet.totalLiquidity.selector;
         apsdexSelectors[4] = ApsdexFacet.liquidity.selector;
-        apsdexSelectors[5] = ApsdexFacet.initializePool.selector;
-        apsdexSelectors[6] = ApsdexFacet.price.selector;
-        apsdexSelectors[7] = ApsdexFacet.currentPrice.selector;
-        apsdexSelectors[8] = ApsdexFacet.calculateXInput.selector;
-        apsdexSelectors[9] = ApsdexFacet.swap.selector;
-        apsdexSelectors[10] = ApsdexFacet.deposit.selector;
-        apsdexSelectors[11] = ApsdexFacet.withdraw.selector;
+        apsdexSelectors[5] = ApsdexFacet.initialized.selector;
+        apsdexSelectors[6] = ApsdexFacet.initializePool.selector;
+        apsdexSelectors[7] = ApsdexFacet.price.selector;
+        apsdexSelectors[8] = ApsdexFacet.currentPrice.selector;
+        apsdexSelectors[9] = ApsdexFacet.calculateXInput.selector;
+        apsdexSelectors[10] = ApsdexFacet.swap.selector;
+        apsdexSelectors[11] = ApsdexFacet.deposit.selector;
+        apsdexSelectors[12] = ApsdexFacet.withdraw.selector;
         cut[3] = IDiamondCut.FacetCut({
             facetAddress: address(apsdexFacet),
             action: IDiamondCut.FacetCutAction.Add,

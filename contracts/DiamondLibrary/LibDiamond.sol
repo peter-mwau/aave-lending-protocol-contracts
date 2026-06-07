@@ -13,6 +13,9 @@ library LibDiamond {
     bytes32 constant LENDING_STORAGE_POSITION = keccak256("lending.storage");
     bytes32 constant MOVEPRICE_STORAGE_POSITION = keccak256("moveprice.storage");
 
+    //roles
+    bytes32 constant DEFAULT_ADMIN_ROLE = keccak256("DEFAULT_ADMIN_ROLE");
+
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event DiamondCut(IDiamondCut.FacetCut[] _diamondCut, address _init, bytes _calldata);
 

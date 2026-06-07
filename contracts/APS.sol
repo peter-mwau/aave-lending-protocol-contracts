@@ -5,7 +5,8 @@ pragma solidity ^0.8.24;
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract APS is ERC20 {
-    uint256 public constant INITIAL_SUPPLY = 100000 * 10 ** 18;
+    uint256 public constant MAX_SUPPLY = 1000000 * 10 ** 18; // Maximum supply of 1 million tokens
+    uint256 public constant INITIAL_SUPPLY = 100000 * 10 ** 18; // Initial supply of 100,000 tokens
 
     event MintSuccessful(address indexed to, uint256 amount);
     event BurnSuccessful(address indexed from, uint256 amount);
@@ -15,6 +16,7 @@ contract APS is ERC20 {
     }
 
     function mintToken(address to, uint256 amount) external returns (bool) {
+        require(totalSupply() + amount <= MAX_SUPPLY, "APS: Exceeds maximum supply");
         _mint(to, amount);
         emit MintSuccessful(to, amount);
         return true;
