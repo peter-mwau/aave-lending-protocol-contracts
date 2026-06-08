@@ -40,6 +40,20 @@ async function resolveFlashLoanPoolAddress() {
     );
 }
 
+async function deploymentOverrides(gasLimit) {
+    const feeData = await ethers.provider.getFeeData();
+    const overrides = { gasLimit };
+
+    if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+        overrides.maxFeePerGas = feeData.maxFeePerGas;
+        overrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+    } else if (feeData.gasPrice) {
+        overrides.gasPrice = feeData.gasPrice;
+    }
+
+    return overrides;
+}
+
 async function tryInitializeApsDexPool(aps, apsDexFacet, deployer, deploymentRecord) {
     if (await apsDexFacet.initialized()) {
         deploymentRecord.APSDEXPool = {
@@ -112,7 +126,11 @@ async function main() {
 
         const APS = await ethers.getContractFactory("APS");
         console.log("Deploying APS token...");
-        const aps = await APS.deploy();
+        const aps = await APS.deploy(await deploymentOverrides(3_000_000));
+        const apsDeployTx = aps.deploymentTransaction();
+        if (apsDeployTx) {
+            console.log("APS deployment tx:", apsDeployTx.hash);
+        }
         await aps.waitForDeployment();
         const apsAddress = await aps.getAddress();
 
@@ -122,7 +140,11 @@ async function main() {
 
         console.log("Deploying APSDEX diamond...");
         const APSDEX = await ethers.getContractFactory("APSDEX");
-        const apsDex = await APSDEX.deploy(apsAddress);
+        const apsDex = await APSDEX.deploy(apsAddress, await deploymentOverrides(8_000_000));
+        const apsDexDeployTx = apsDex.deploymentTransaction();
+        if (apsDexDeployTx) {
+            console.log("APSDEX deployment tx:", apsDexDeployTx.hash);
+        }
         await apsDex.waitForDeployment();
         const apsDexAddress = await apsDex.getAddress();
 

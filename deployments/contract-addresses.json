@@ -18,20 +18,20 @@
     "FlashLoanPool": "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951"
   },
   "sepolia": {
-    "deployedAt": "2026-06-02T10:48:36.155Z",
+    "deployedAt": "2026-06-08T12:57:13.114Z",
     "deployer": "0xcE59326853B8EfE539882137d16F826fE46BDD5c",
     "status": "main-diamond-deployment-broadcast",
-    "APS": "0xF2f1f61133c649a7FfEDF5154828747408D31A2a",
-    "MainDiamond": "0xa0E42369FcCf25ea85EC9aa9597204AD59C8c6f4",
-    "DiamondInit": "0x61a3BF9F4871327Ee6421FDCcB5eaca92e7d79c7",
+    "APS": "0x55548f760cc30FEc5230046a130ee3B652614A9C",
+    "MainDiamond": "0xd5ABda121e01c9bE2C945c78ED979b777A100103",
+    "DiamondInit": "0xE5b024f8575359D8114f6608136A6c7269cc154A",
     "Facets": {
-      "DiamondCutFacet": "0x42Cc9e7E44B46E038a6aAA6fE79B8B63448f277a",
-      "DiamondLoupeFacet": "0x0939a8f027F45fadaB59a4EFaD87cb436fEE05f1",
-      "OwnershipFacet": "0xa012aD02ba1BD0942f9f2e3Ad28fC983C7DdaE04",
-      "ApsdexFacet": "0x6C6D39214236FF901F293C089D0c6E7cea89FE6b",
-      "FlashLoanFacet": "0x4aE2aD6D90E6D482c15Cb0Ae8a89ABDa57a1C435",
-      "MovePriceFacet": "0x6b692009f937470661Aa379622AdaFF898de93b2",
-      "LendingFacet": "0xC2E8e70fD402D614771d95160Ce5B3C8DF95d09e"
+      "DiamondCutFacet": "0xdce4979F73d4A23D66e3E25E7BA9CB3DCd5f44d3",
+      "DiamondLoupeFacet": "0x870C4D6912f62a070cFAFaC959C984F3FCF01b84",
+      "OwnershipFacet": "0x8df1cBA52B3baf73938Ba677FBA69Db0756C7bdA",
+      "ApsdexFacet": "0x3752c8342ca0243882aD57467000cd34D139d1dc",
+      "FlashLoanFacet": "0xb105415175fCf27968842D428DD4d8125DaAdc9c",
+      "MovePriceFacet": "0x719b42Ef797F78D790167ec5de5c1B9304ea36F0",
+      "LendingFacet": "0x3B43D5ab4951758e2c45Ed8c821fF04a9cB6cEBf"
     }
   }
 }
