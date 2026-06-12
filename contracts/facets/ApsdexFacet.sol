@@ -35,6 +35,8 @@ contract ApsdexFacet {
 
     function initializePool(uint256 apsAmount) external payable returns (bool) {
         LibDiamond.APSDEXStorage storage s = LibDiamond.apsdexStorage();
+        LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
+        require(msg.sender == ds.contractOwner, "Only owner can initialize the pool");
         require(!s.initialized, "Already initialized");
         require(msg.value > 0 && apsAmount > 0, "Invalid amounts");
         require(address(s.token) != address(0), "Token not set");
