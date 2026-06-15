@@ -13,6 +13,11 @@ contract ApsdexFacet {
         return LibDiamond.apsdexStorage().token;
     }
 
+    modifier onlyOwner() {
+        LibDiamond.enforceIsContractOwner();
+        _;
+    }
+
     function ethReserve() external view returns (uint256) {
         return LibDiamond.apsdexStorage().ethReserve;
     }
@@ -33,7 +38,7 @@ contract ApsdexFacet {
         return LibDiamond.apsdexStorage().initialized;
     }
 
-    function initializePool(uint256 apsAmount) external payable returns (bool) {
+    function initializePool(uint256 apsAmount) external payable onlyOwner returns (bool) {
         LibDiamond.APSDEXStorage storage s = LibDiamond.apsdexStorage();
         LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
         require(msg.sender == ds.contractOwner, "Only owner can initialize the pool");
@@ -51,6 +56,12 @@ contract ApsdexFacet {
 
         emit LiquidityInitialized(msg.sender, msg.value, apsAmount);
         return true;
+    }
+
+    // 🔒 Only owner can set or update token address if needed
+    function setToken(address tokenAddress) external onlyOwner {
+        require(tokenAddress != address(0), "Invalid token address");
+        LibDiamond.apsdexStorage().token = IERC20(tokenAddress);
     }
 
     function price(uint256 _xInput, uint256 _xReserves, uint256 _yReserves) public pure returns (uint256 yOutput) {
