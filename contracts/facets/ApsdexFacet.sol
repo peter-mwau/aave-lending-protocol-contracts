@@ -63,7 +63,7 @@ contract ApsdexFacet {
     function currentPrice() public view returns (uint256) {
         LibDiamond.APSDEXStorage storage s = LibDiamond.apsdexStorage();
         require(s.apsReserve > 0, "APS reserve is zero");
-        return (s.ethReserve * 1e18) / s.apsReserve;
+        return (s.apsReserve * 1e18) / s.ethReserve;
     }
 
     function calculateXInput(uint256 _yOutput, uint256 _xReserves, uint256 _yReserves) public pure returns (uint256 xInput) {
