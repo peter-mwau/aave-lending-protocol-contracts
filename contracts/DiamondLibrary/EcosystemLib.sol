@@ -10,6 +10,7 @@ library EcosystemLib {
         address flashLoanPool;
         address apsdexToken;
         bool apsdexEnabled;
+        uint256 dexDexReserve;
     }   
 
     function initialize(Data storage self) internal {

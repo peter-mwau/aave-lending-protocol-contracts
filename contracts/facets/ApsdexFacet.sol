@@ -8,6 +8,7 @@ contract ApsdexFacet {
     event LiquidityInitialized(address indexed provider, uint256 ETH_amount, uint256 APS_amount);
     event LiquidityProvided(address indexed provider, uint256 liquidityMinted, uint256 ethAmount, uint256 tokenAmount);
     event LiquidityRemoved(address indexed provider, uint256 liquidityBurned, uint256 ethAmount, uint256 tokenAmount);
+    event DexReserveUpdated(uint256 newReserve);
 
     function token() external view returns (IERC20) {
         return LibDiamond.apsdexStorage().token;
@@ -54,7 +55,12 @@ contract ApsdexFacet {
         s.liquidity[msg.sender] = msg.value;
         s.initialized = true;
 
+        // Track the DEX liquidity reserve for the lending pool
+        LibDiamond.EcosystemDataStorage storage ecosystem = LibDiamond.ecosystemDataStorage();
+        ecosystem.data.dexDexReserve = apsAmount;
+
         emit LiquidityInitialized(msg.sender, msg.value, apsAmount);
+        emit DexReserveUpdated(apsAmount);
         return true;
     }
 
@@ -95,6 +101,10 @@ contract ApsdexFacet {
         s.ethReserve += ethInput;
         s.apsReserve -= tokenOutput;
 
+        // Update DEX reserve tracking
+        LibDiamond.EcosystemDataStorage storage ecosystem = LibDiamond.ecosystemDataStorage();
+        ecosystem.data.dexDexReserve = s.apsReserve;
+
         require(s.token.transfer(msg.sender, tokenOutput), "Token transfer failed");
         return tokenOutput;
     }
@@ -109,6 +119,10 @@ contract ApsdexFacet {
 
         s.apsReserve += tokenInput;
         s.ethReserve -= ethOutput;
+
+        // Update DEX reserve tracking
+        LibDiamond.EcosystemDataStorage storage ecosystem = LibDiamond.ecosystemDataStorage();
+        ecosystem.data.dexDexReserve = s.apsReserve;
 
         (bool sent, ) = payable(msg.sender).call{ value: ethOutput }("");
         require(sent, "ETH transfer failed");
@@ -141,6 +155,11 @@ contract ApsdexFacet {
         s.totalLiquidity += liquidityMinted;
 
         require(s.token.transferFrom(msg.sender, address(this), tokenDeposit));
+
+        // Update DEX reserve tracking after deposit
+        LibDiamond.EcosystemDataStorage storage ecosystem = LibDiamond.ecosystemDataStorage();
+        ecosystem.data.dexDexReserve = s.apsReserve;
+
         emit LiquidityProvided(msg.sender, liquidityMinted, msg.value, tokenDeposit);
         return tokenDeposit;
     }
@@ -157,11 +176,21 @@ contract ApsdexFacet {
         s.liquidity[msg.sender] -= amount;
         s.totalLiquidity -= amount;
 
+        // Update DEX reserve tracking after withdrawal
+        LibDiamond.EcosystemDataStorage storage ecosystem = LibDiamond.ecosystemDataStorage();
+        ecosystem.data.dexDexReserve = s.apsReserve;
+
         (bool sent, ) = payable(msg.sender).call{ value: ethWithdrawn }("");
         require(sent, "withdraw(): revert in transferring eth to you!");
         require(s.token.transfer(msg.sender, tokenAmount));
 
         emit LiquidityRemoved(msg.sender, amount, ethWithdrawn, tokenAmount);
         return (ethWithdrawn, tokenAmount);
+    }
+
+    // NEW: View function to get DEX reserve tracking
+    function getDexReserve() external view returns (uint256) {
+        LibDiamond.EcosystemDataStorage storage ecosystem = LibDiamond.ecosystemDataStorage();
+        return ecosystem.data.dexDexReserve;
     }
 }
