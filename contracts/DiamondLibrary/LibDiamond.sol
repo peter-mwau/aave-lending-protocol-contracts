@@ -66,7 +66,10 @@ library LibDiamond {
     struct LendingFacetStorage {
         address aps;
         address apsDex;
+        uint256 totalBorrowed;        // Track total borrowed APS
+        uint256 availableLendingAPS;   // Track APS available for lending
         mapping(address => LendingPosition) positions;
+        mapping(address => uint256) lendingDeposits;
     }
 
     struct MovePriceFacetStorage {

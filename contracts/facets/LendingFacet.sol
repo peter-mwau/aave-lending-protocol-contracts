@@ -43,6 +43,8 @@ contract LendingFacet {
         LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
         ls.aps = apsToken;
         ls.apsDex = apsDex;
+        // Initialize totalBorrowed to 0
+        ls.totalBorrowed = 0;
     }
 
     function addCollateral(uint256 amount) external payable {
@@ -69,6 +71,7 @@ contract LendingFacet {
         updateRiskStatus(msg.sender);
     }
 
+    // UPDATED: borrowAPS with proper totalBorrowed tracking
     function borrowAPS(uint256 amount) external {
         require(amount > 0, "Invalid amount");
 
@@ -85,12 +88,21 @@ contract LendingFacet {
         require(collateralRatio >= COLLATERAL_RATIO, "Insufficient collateral");
 
         IERC20 aps = IERC20(LibDiamond.ecosystemDataStorage().data.apsToken);
-        require(aps.balanceOf(address(this)) >= amount, "Protocol lacks liquidity");
+        
+        // Calculate available lending liquidity
+        uint256 totalDiamondBalance = aps.balanceOf(address(this));
+        uint256 totalBorrowed = ls.totalBorrowed;
+        uint256 availableLending = totalDiamondBalance - totalBorrowed;
+        
+        require(availableLending >= amount, "Protocol lacks liquidity");
 
         user.borrowedAPS = newBorrowedAmount;
         if (user.borrowTimestamp == 0) {
             user.borrowTimestamp = block.timestamp;
         }
+        
+        // Update global total borrowed
+        ls.totalBorrowed += amount;
 
         require(aps.transfer(msg.sender, amount), "APS transfer failed");
 
@@ -99,6 +111,7 @@ contract LendingFacet {
         updateRiskStatus(msg.sender);
     }
 
+    // UPDATED: repayLoan with totalBorrowed tracking
     function repayLoan() external {
         LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
         LibDiamond.LendingPosition storage user = ls.positions[msg.sender];
@@ -115,6 +128,9 @@ contract LendingFacet {
 
         require(aps.transferFrom(msg.sender, address(this), repayAmount), "Repayment failed");
 
+        // Reduce global total borrowed
+        ls.totalBorrowed -= user.borrowedAPS;
+
         user.borrowedAPS = 0;
         user.borrowTimestamp = 0;
         user.riskTimestamp = 0;
@@ -122,6 +138,7 @@ contract LendingFacet {
         emit Repaid(msg.sender, repayAmount);
     }
 
+    // UPDATED: liquidate with totalBorrowed tracking
     function liquidate(address borrower) external {
         require(canLiquidate(borrower), "Not liquidatable");
 
@@ -144,6 +161,10 @@ contract LendingFacet {
         require(collateralReward <= user.collateralETH, "Insufficient collateral");
 
         user.collateralETH -= collateralReward;
+        
+        // Reduce global total borrowed
+        ls.totalBorrowed -= user.borrowedAPS;
+        
         user.borrowedAPS = 0;
         user.borrowTimestamp = 0;
         user.riskTimestamp = 0;
@@ -241,6 +262,31 @@ contract LendingFacet {
         return (apsAmount * apsPrice) / 1e18;
     }
 
+    // NEW: View function to get lending pool stats (doesn't affect existing frontend)
+    function getLendingPoolStats() external view returns (
+        uint256 totalBalance,
+        uint256 totalBorrowed,
+        uint256 availableLending
+    ) {
+        LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
+        IERC20 aps = IERC20(LibDiamond.ecosystemDataStorage().data.apsToken);
+        
+        totalBalance = aps.balanceOf(address(this));
+        totalBorrowed = ls.totalBorrowed;
+        availableLending = totalBalance - totalBorrowed;
+    }
+
+    // NEW: View function to get available lending APS
+    function getAvailableLendingAPS() external view returns (uint256) {
+        LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
+        IERC20 aps = IERC20(LibDiamond.ecosystemDataStorage().data.apsToken);
+        
+        uint256 totalBalance = aps.balanceOf(address(this));
+        uint256 totalBorrowed = ls.totalBorrowed;
+        
+        return totalBalance - totalBorrowed;
+    }
+
     function _stake(address user) internal returns (bool) {
         LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
         LibDiamond.LendingPosition storage position = ls.positions[user];
@@ -254,10 +300,14 @@ contract LendingFacet {
         return true;
     }
 
+    // UPDATED: reduceDebt with totalBorrowed tracking
     function reduceDebt(address user, uint256 amount) internal {
         LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
         LibDiamond.LendingPosition storage position = ls.positions[user];
         require(position.borrowedAPS >= amount, "Amount exceeds debt");
+
+        // Reduce global total borrowed
+        ls.totalBorrowed -= amount;
 
         position.borrowedAPS -= amount;
         position.stakeTimestamp = block.timestamp;
@@ -276,5 +326,4 @@ contract LendingFacet {
             stakeTimestamp: stored.stakeTimestamp
         });
     }
-
 }

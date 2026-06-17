@@ -2,11 +2,11 @@
     "scripts": 
     {
         "deploy:all": "node scripts/runWithNetwork.js scripts/deployAll.js",
-        "deploy:all:hardhat": "DEPLOY_NETWORK=hardhat node scripts/runWithNetwork.js scripts/deployAll.js",
-        "deploy:all:sepolia": "DEPLOY_NETWORK=sepolia node scripts/runWithNetwork.js scripts/deployAll.js",
+        "deploy:aps:hardhat": "DEPLOY_NETWORK=hardhat node scripts/runWithNetwork.js scripts/deployAll.js",
+        "deploy:aps:sepolia": "DEPLOY_NETWORK=sepolia node scripts/runWithNetwork.js scripts/deployAll.js",
         "deploy:diamond": "node scripts/runWithNetwork.js scripts/apsDeploy.js",
-        "deploy:diamond:hardhat": "DEPLOY_NETWORK=hardhat node scripts/runWithNetwork.js scripts/apsDeploy.js",
-        "deploy:diamond:sepolia": "DEPLOY_NETWORK=sepolia node scripts/runWithNetwork.js scripts/apsDeploy.js",
+        "deploy:all:hardhat": "DEPLOY_NETWORK=hardhat node scripts/runWithNetwork.js scripts/apsDeploy.js",
+        "deploy:all:sepolia": "DEPLOY_NETWORK=sepolia node scripts/runWithNetwork.js scripts/apsDeploy.js",
         "upgrade:diamond": "node scripts/runWithNetwork.js scripts/upgradeDiamond.js",
         "upgrade:diamond:hardhat": "DEPLOY_NETWORK=hardhat node scripts/runWithNetwork.js scripts/upgradeDiamond.js",
         "upgrade:diamond:sepolia": "DEPLOY_NETWORK=sepolia node scripts/runWithNetwork.js scripts/upgradeDiamond.js",
