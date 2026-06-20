@@ -10,6 +10,17 @@
         "upgrade:diamond": "node scripts/runWithNetwork.js scripts/upgradeDiamond.js",
         "upgrade:diamond:hardhat": "DEPLOY_NETWORK=hardhat node scripts/runWithNetwork.js scripts/upgradeDiamond.js",
         "upgrade:diamond:sepolia": "DEPLOY_NETWORK=sepolia node scripts/runWithNetwork.js scripts/upgradeDiamond.js",
+        "upgrade:facet": "npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:facet:sepolia": "FACET=$FACET npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:lending": "FACET=lending npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:apsdex": "FACET=apsdex npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:flashloan": "FACET=flashLoan npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:moveprice": "FACET=movePrice npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:ownership": "FACET=ownership npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:diamondcut": "FACET=diamondcut npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:diamondloupe": "FACET=diamondloupe npx hardhat run scripts/upgradeFacets.js --network sepolia",
+        "upgrade:all": "node scripts/upgradeAllFacets.js",
+        "upgrade:all:sepolia": "DEPLOY_NETWORK=sepolia node scripts/upgradeAllFacets.js",
         "test": "hardhat test"
     },
     "devDependencies": 

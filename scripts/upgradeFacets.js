@@ -58,7 +58,23 @@ async function upgradeFacet(facetKey) {
 
     // Deploy new version of the facet
     console.log(`\n🚀 Deploying new ${contractName}...`);
-    const newFacet = await deployContract(contractName);
+    console.log(`⏳ This may take a moment...`);
+
+    // Add timeout handling
+    const deployPromise = deployContract(contractName);
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Deployment timed out after 60 seconds')), 80000);
+    });
+
+    let newFacet;
+    try {
+        newFacet = await Promise.race([deployPromise, timeoutPromise]);
+        console.log(`✅ ${contractName} deployed successfully!`);
+        console.log(`📄 New address: ${await newFacet.getAddress()}`);
+    } catch (error) {
+        console.error('❌ Deployment failed or timed out:', error.message);
+        throw error;
+    }
 
     // Get function selectors from the new facet
     console.log('\n🔍 Extracting Function Selectors...');
