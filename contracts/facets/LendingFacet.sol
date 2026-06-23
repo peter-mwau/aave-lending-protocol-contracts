@@ -51,7 +51,6 @@ contract LendingFacet {
         require(msg.value == amount, "Must deposit ETH");
         LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
         LibDiamond.LendingPosition storage user = ls.positions[msg.sender];
-        ls.positions[msg.sender].collateralETH += msg.value;
         user.collateralETH += msg.value;
         emit CollateralDeposited(msg.sender, msg.value);
         _stake(msg.sender);
@@ -63,7 +62,6 @@ contract LendingFacet {
 
         require(user.collateralETH >= amount, "Insufficient collateral");
         user.collateralETH -= amount;
-        ls.positions[msg.sender].collateralETH -= amount;
 
         require(getHealthFactor(msg.sender) >= PRECISION || user.borrowedAPS == 0, "Withdrawal breaks health factor");
 
@@ -328,5 +326,23 @@ contract LendingFacet {
             riskTimestamp: stored.riskTimestamp,
             stakeTimestamp: stored.stakeTimestamp
         });
+    }
+
+    function debugPosition(address userAddress) external view returns (
+        uint256 collateral,
+        uint256 borrowed,
+        uint256 borrowTime,
+        uint256 riskTime,
+        uint256 stakeTime
+    ) {
+        LibDiamond.LendingFacetStorage storage ls = LibDiamond.lendingFacetStorage();
+        LibDiamond.LendingPosition storage user = ls.positions[userAddress];
+        return (
+            user.collateralETH,
+            user.borrowedAPS,
+            user.borrowTimestamp,
+            user.riskTimestamp,
+            user.stakeTimestamp
+        );
     }
 }
