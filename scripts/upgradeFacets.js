@@ -63,7 +63,7 @@ async function upgradeFacet(facetKey) {
     // Add timeout handling
     const deployPromise = deployContract(contractName);
     const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Deployment timed out after 60 seconds')), 80000);
+        setTimeout(() => reject(new Error('Deployment timed out after 180 seconds (waitForDeployment RPC/provider)')), 180000);
     });
 
     let newFacet;

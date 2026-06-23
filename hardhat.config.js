@@ -4,7 +4,7 @@ require("dotenv").config();
 
 const accounts = process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [];
 
-const sepoliaUrl = process.env.INFURA_RPC_URL;
+const sepoliaUrl = process.env.ALCHEMY_RPC_URL;
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {

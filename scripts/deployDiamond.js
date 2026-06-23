@@ -160,6 +160,8 @@ async function main() {
 
         const mainDiamondAddress = await mainDiamond.getAddress();
         deploymentRecord.MainDiamond = mainDiamondAddress;
+        console.log("Main Diamond deployed at: ", mainDiamondAddress);
+
 
         const constructorAddresses = deriveConstructorCreateAddresses(mainDiamondAddress);
         deploymentRecord.DiamondInit = constructorAddresses.DiamondInit;
