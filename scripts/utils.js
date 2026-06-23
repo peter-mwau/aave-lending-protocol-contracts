@@ -152,12 +152,59 @@ async function getDiamondCutContract() {
 async function deployContract(contractName, constructorArgs = []) {
     console.log(`\n🚀 Deploying ${contractName}...`);
 
-    const ContractFactory = await ethers.getContractFactory(contractName);
-    const contract = await ContractFactory.deploy(...constructorArgs);
-    await contract.waitForDeployment();
+    // Preflight: ensure RPC is reachable before we spend time deploying
+    try {
+        const block = await ethers.provider.getBlockNumber();
+        console.log(`🩺 RPC preflight OK - latest block: ${block}`);
+    } catch (e) {
+        console.error('❌ RPC preflight failed (cannot reach provider).');
+        throw e;
+    }
 
-    console.log(`✅ ${contractName} deployed to: ${contract.target}`);
-    return contract;
+    const ContractFactory = await ethers.getContractFactory(contractName);
+
+    const MAX_RETRIES = 2; // retry deploy+wait on headers timeout / connectivity issues
+    let lastErr;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            console.log(`🔁 Deploy attempt ${attempt}/${MAX_RETRIES}`);
+            const contract = await ContractFactory.deploy(...constructorArgs);
+
+            // Wrap waitForDeployment with an explicit timeout (provider-level failures can hang)
+            const waitPromise = contract.waitForDeployment();
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error(`${contractName} waitForDeployment() timed out after 3 minutes`));
+                }, 180000);
+            });
+
+            await Promise.race([waitPromise, timeoutPromise]);
+
+            console.log(`✅ ${contractName} deployed to: ${contract.target}`);
+            return contract;
+        } catch (err) {
+            lastErr = err;
+            console.warn(`⚠️  ${contractName} deploy attempt ${attempt} failed: ${err?.message || err}`);
+
+            const msg = (err?.message || '').toLowerCase();
+            const shouldRetry =
+                msg.includes('timeout') ||
+                msg.includes('headers') ||
+                msg.includes('und_err_headers_timeout') ||
+                msg.includes('und_err') ||
+                msg.includes('network') ||
+                msg.includes('econnreset');
+
+            if (!shouldRetry || attempt === MAX_RETRIES) {
+                throw err;
+            }
+
+            console.log('↩️  Retrying deploy after connectivity/timeout error...');
+        }
+    }
+
+    throw lastErr;
 }
 
 async function executeDiamondCut(facetCuts, initAddress = ethers.ZeroAddress, initCalldata = "0x") {
