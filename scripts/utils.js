@@ -111,7 +111,8 @@ function getFacetAddress(facetName) {
         };
 
         const key = facetMapping[facetName] || facetName;
-        return networkConfig.Facets ? networkConfig.Facets[key] || "" : "";
+        const facets = networkConfig.Facets || networkConfig.facets || {};
+        return facets[key] || "";
     } catch {
         return "";
     }

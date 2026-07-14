@@ -30,12 +30,15 @@ async function main() {
     const facetAddress = await facet.getAddress();
     const selectors = await getSelectors(Facet);
     const diamondCut = await ethers.getContractAt("DiamondCutFacet", diamondAddress);
+    const registry = await readRegistry();
+    const current = registry[network.name] || {};
+    const action = current.Facets && current.Facets[facetName] ? 1 : 0;
 
     await diamondCut.diamondCut(
         [
             {
                 facetAddress,
-                action: 0,
+                action,
                 functionSelectors: selectors,
             },
         ],
@@ -43,9 +46,8 @@ async function main() {
         "0x"
     );
 
-    const registry = await readRegistry();
-    const current = registry[network.name] || {};
-    current[facetName] = facetAddress;
+    current.Facets = current.Facets || {};
+    current.Facets[facetName] = facetAddress;
     await writeRegistry(network.name, current);
 
     console.log(`${facetName} deployed to:`, facetAddress);
