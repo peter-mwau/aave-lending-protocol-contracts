@@ -60,15 +60,9 @@ async function upgradeFacet(facetKey) {
     console.log(`\n🚀 Deploying new ${contractName}...`);
     console.log(`⏳ This may take a moment...`);
 
-    // Add timeout handling
-    const deployPromise = deployContract(contractName);
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Deployment timed out after 180 seconds (waitForDeployment RPC/provider)')), 180000);
-    });
-
     let newFacet;
     try {
-        newFacet = await Promise.race([deployPromise, timeoutPromise]);
+        newFacet = await deployContract(contractName);
         console.log(`✅ ${contractName} deployed successfully!`);
         console.log(`📄 New address: ${await newFacet.getAddress()}`);
     } catch (error) {
@@ -303,7 +297,7 @@ async function upgradeFacet(facetKey) {
     console.log('\n💾 Updating Configuration...');
 
     const configUpdate = {
-        facets: {
+        Facets: {
             [contractName]: await newFacet.getAddress()
         }
     };
