@@ -1,7 +1,7 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
-const REGISTRY_PATH = path.join(process.cwd(), "deployments", "contract-addresses.json");
+const REGISTRY_PATH = path.resolve(__dirname, "..", "deployments", "contract-addresses.json");
 
 async function readRegistry() {
     try {
