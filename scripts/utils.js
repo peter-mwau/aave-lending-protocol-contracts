@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Use the deployments/contract-addresses.json
-const CONFIG_FILE = path.join(process.cwd(), 'deployments', 'contract-addresses.json');
+const CONFIG_FILE = path.resolve(__dirname, '..', 'deployments', 'contract-addresses.json');
 
 /**
  * Utility functions for Diamond deployment and management
@@ -31,7 +31,7 @@ function saveDeploymentConfig(config) {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+        fs.writeFileSync(CONFIG_FILE, `${JSON.stringify(config, null, 2)}\n`);
         console.log('✅ Deployment configuration saved to deployments/contract-addresses.json');
     } catch (error) {
         console.error('Error saving deployment config:', error);
@@ -163,24 +163,62 @@ async function deployContract(contractName, constructorArgs = []) {
     }
 
     const ContractFactory = await ethers.getContractFactory(contractName);
+    const deploymentTimeoutMs = Number(process.env.DEPLOYMENT_TIMEOUT_MS || 900000);
+    const receiptPollIntervalMs = 15000;
 
     const MAX_RETRIES = 2; // retry deploy+wait on headers timeout / connectivity issues
     let lastErr;
+
+    async function waitForDeploymentReceipt(txHash) {
+        const startedAt = Date.now();
+
+        while (Date.now() - startedAt < deploymentTimeoutMs) {
+            const receipt = await ethers.provider.getTransactionReceipt(txHash);
+            if (receipt && receipt.contractAddress) {
+                return receipt;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, receiptPollIntervalMs));
+        }
+
+        return null;
+    }
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             console.log(`🔁 Deploy attempt ${attempt}/${MAX_RETRIES}`);
             const contract = await ContractFactory.deploy(...constructorArgs);
+            const deploymentTx = contract.deploymentTransaction();
+            const txHash = deploymentTx?.hash;
 
-            // Wrap waitForDeployment with an explicit timeout (provider-level failures can hang)
+            if (txHash) {
+                console.log(`📝 ${contractName} deployment tx: ${txHash}`);
+            }
+
+            // Wait for deployment confirmation, but fall back to receipt polling if the
+            // provider's waitForDeployment path stalls on a slow network.
             const waitPromise = contract.waitForDeployment();
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => {
-                    reject(new Error(`${contractName} waitForDeployment() timed out after 3 minutes`));
-                }, 180000);
+                    reject(new Error(`${contractName} waitForDeployment() timed out after ${Math.round(deploymentTimeoutMs / 60000)} minutes`));
+                }, deploymentTimeoutMs);
             });
 
-            await Promise.race([waitPromise, timeoutPromise]);
+            try {
+                await Promise.race([waitPromise, timeoutPromise]);
+            } catch (waitErr) {
+                if (!txHash) {
+                    throw waitErr;
+                }
+
+                const receipt = await waitForDeploymentReceipt(txHash);
+                if (receipt) {
+                    console.log(`✅ ${contractName} deployment confirmed via receipt: ${receipt.contractAddress}`);
+                    return contract;
+                }
+
+                throw waitErr;
+            }
 
             console.log(`✅ ${contractName} deployed to: ${contract.target}`);
             return contract;
